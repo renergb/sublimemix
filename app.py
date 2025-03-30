@@ -51,6 +51,29 @@ def index():
     """Render the main application page."""
     return render_template('index.html')
 
+@app.route('/api/episodes/add', methods=['POST'])
+def add_episode():
+    data = request.json
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+
+    required_fields = ['id', 'title', 'audio_url']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"success": False, "message": f"Missing required field: {field}"}), 400
+
+    db.add_episode(
+        id=data['id'],
+        title=data['title'],
+        description=data.get('description', ''),
+        publication_date=data.get('publication_date', ''),
+        audio_url=data['audio_url'],
+        image_url=data.get('image_url', ''),
+        duration=data.get('duration', 0)
+    )
+
+    return jsonify({"success": True, "message": "Episode added/updated"})
+
 # API Endpoints
 @app.route('/api/episodes', methods=['GET'])
 def get_episodes():
@@ -60,9 +83,30 @@ def get_episodes():
 
 @app.route('/api/episodes/refresh', methods=['GET'])
 def refresh_episodes():
-    """Refresh episodes from the RSS feed."""
-    result = podcast_parser.parse_feed()
-    return jsonify(result)
+    """Refresh episodes from the RSS feed and add them to the database."""
+    parsed = podcast_parser.parse_feed()
+
+    if not parsed.get('success'):
+        return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
+
+    new_count = 0
+    for item in parsed.get('episodes', []):
+        # Check required fields
+        if not all(k in item for k in ('id', 'title', 'audio_url')):
+            continue
+
+        db.add_episode(
+            id=item['id'],
+            title=item['title'],
+            description=item.get('description', ''),
+            publication_date=item.get('publication_date', ''),
+            audio_url=item['audio_url'],
+            image_url=item.get('image_url', ''),
+            duration=item.get('duration', 0)
+        )
+        new_count += 1
+
+    return jsonify({"success": True, "message": f"{new_count} episodes added or updated"})
 
 @app.route('/api/episodes/<int:episode_id>', methods=['GET'])
 def get_episode(episode_id):
