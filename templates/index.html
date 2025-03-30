@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sublime Weekendmix Jukebox</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="/static/css/download.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 sidebar">
+                <div class="sidebar-header">
+                    <h3>Sublime Weekendmix</h3>
+                    <p>Jukebox</p>
+                </div>
+                <div class="sidebar-menu">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" id="nav-home">
+                                <i class="fas fa-home"></i> Home
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="nav-episodes">
+                                <i class="fas fa-podcast"></i> Alle Afleveringen
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="nav-favorites">
+                                <i class="fas fa-heart"></i> Favorieten
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="nav-songs">
+                                <i class="fas fa-music"></i> Favoriete Nummers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="nav-downloads">
+                                <i class="fas fa-download"></i> Downloads
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="sidebar-footer">
+                    <button class="btn btn-primary btn-block" id="btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Vernieuwen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 main-content">
+                <!-- Content Header -->
+                <div class="content-header">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h2 id="content-title">Home</h2>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary" id="btn-random">
+                                    <i class="fas fa-random"></i> Willekeurig
+                                </button>
+                                <button class="btn btn-outline-secondary" id="btn-continuous">
+                                    <i class="fas fa-sync"></i> Doorlopend
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Body -->
+                <div class="content-body">
+                    <!-- Home View -->
+                    <div id="view-home" class="content-view active">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h4>Welkom bij de Sublime Weekendmix Jukebox</h4>
+                                        <p>Luister naar alle afleveringen van The Sublime Weekendmix in willekeurige volgorde, markeer je favorieten, en ontdek nieuwe muziek.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Recent Afgespeeld</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group" id="recent-episodes">
+                                            <!-- Recent episodes will be loaded here -->
+                                            <li class="list-group-item text-center">Laden...</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Favoriete Afleveringen</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group" id="favorite-episodes">
+                                            <!-- Favorite episodes will be loaded here -->
+                                            <li class="list-group-item text-center">Laden...</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Episodes View -->
+                    <div id="view-episodes" class="content-view">
+                        <div class="episodes-list" id="episodes-container">
+                            <!-- Episodes will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Laden...</span>
+                                </div>
+                                <p class="mt-2">Afleveringen laden...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Favorites View -->
+                    <div id="view-favorites" class="content-view">
+                        <div class="favorites-list" id="favorites-container">
+                            <!-- Favorite episodes will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Laden...</span>
+                                </div>
+                                <p class="mt-2">Favorieten laden...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Songs View -->
+                    <div id="view-songs" class="content-view">
+                        <div class="songs-list" id="songs-container">
+                            <!-- Favorite songs will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Laden...</span>
+                                </div>
+                                <p class="mt-2">Favoriete nummers laden...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Downloads View -->
+                    <div id="view-downloads" class="content-view">
+                        <div class="downloads-container" id="downloads-container">
+                            <!-- Downloaded files will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Laden...</span>
+                                </div>
+                                <p class="mt-2">Downloads laden...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Bar -->
+        <div class="player-bar">
+            <div class="container-fluid">
+                <div class="row">
+                    <!-- Episode Info -->
+                    <div class="col-md-3">
+                        <div class="episode-info">
+                            <img src="/static/img/default-cover.jpg" alt="Episode Cover" id="player-cover">
+                            <div class="episode-details">
+                                <h5 id="player-title">Geen aflevering geselecteerd</h5>
+                                <p id="player-date">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Player Controls -->
+                    <div class="col-md-6">
+                        <div class="player-controls">
+                            <div class="controls-buttons">
+                                <button class="btn btn-sm" id="btn-previous">
+                                    <i class="fas fa-step-backward"></i>
+                                </button>
+                                <button class="btn btn-lg btn-play" id="btn-play">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn btn-sm" id="btn-next">
+                                    <i class="fas fa-step-forward"></i>
+                                </button>
+                            </div>
+                            <div class="progress-container">
+                                <span id="current-time">0:00</span>
+                                <div class="progress">
+                                    <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <span id="total-time">0:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Controls -->
+                    <div class="col-md-3">
+                        <div class="additional-controls">
+                            <button class="btn btn-sm" id="btn-favorite" title="Markeer als favoriet">
+                                <i class="far fa-heart"></i>
+                            </button>
+                            <button class="btn btn-sm" id="btn-mark-song" title="Markeer nummer">
+                                <i class="fas fa-music"></i>
+                            </button>
+                            <div class="volume-control">
+                                <i class="fas fa-volume-up"></i>
+                                <input type="range" class="form-range" id="volume-slider" min="0" max="100" value="100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mark Song Modal -->
+    <div class="modal fade" id="markSongModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Markeer Nummer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="mark-song-form">
+                        <div class="mb-3">
+                            <label for="song-title" class="form-label">Titel</label>
+                            <input type="text" class="form-control" id="song-title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="song-artist" class="form-label">Artiest</label>
+                            <input type="text" class="form-control" id="song-artist" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tijdstip</label>
+                            <p id="song-timestamp" class="form-control-static">0:00</p>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-song">Opslaan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spotify Results Modal -->
+    <div class="modal fade" id="spotifyResultsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Spotify Resultaten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="spotify-results-container">
+                        <!-- Spotify results will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Sluiten</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/download.js"></script>
+</body>
+</html>

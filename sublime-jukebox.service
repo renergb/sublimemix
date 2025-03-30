@@ -1,0 +1,12 @@
+[Unit]
+Description=Sublime Weekendmix Jukebox
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/sublime-jukebox
+ExecStart=/usr/local/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 wsgi:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
