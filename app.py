@@ -1,3 +1,12 @@
+
+import os
+
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+
+
+
 import os
 import requests
 from flask import Flask, jsonify, request, render_template, send_from_directory, send_file
