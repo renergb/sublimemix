@@ -83,11 +83,14 @@ def get_episodes():
 
 @app.route('/api/episodes/refresh', methods=['GET'])
 def refresh_episodes():
-    """Refresh episodes from the RSS feed and add them to the database."""
     parsed = podcast_parser.parse_feed()
+    print("=== Parsed RSS result ===")
+    print(parsed)
 
     if not parsed.get('success'):
-        return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
+        return jsonify({"success": False, "message": "Failed to parse RSS feed", "details": parsed}), 500
+
+    ...        return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
 
     new_count = 0
     for item in parsed.get('episodes', []):
