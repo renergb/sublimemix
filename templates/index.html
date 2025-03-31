@@ -4,170 +4,161 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sublime Weekendmix Jukebox</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <!-- WaveSurfer.js library -->
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.timeline.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.markers.min.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
+    <div class="container">
         <div class="sidebar">
             <div class="logo">
                 <h1>Sublime Weekendmix</h1>
                 <p>Jukebox</p>
             </div>
-            <nav>
+            <nav class="main-nav">
                 <ul>
-                    <li><a href="#home" class="nav-link active"><i class="fas fa-home"></i> Home</a></li>
-                    <li><a href="#episodes" class="nav-link"><i class="fas fa-podcast"></i> Alle Afleveringen</a></li>
-                    <li><a href="#favorites" class="nav-link"><i class="fas fa-heart"></i> Favorieten</a></li>
-                    <li><a href="#favorite-songs" class="nav-link"><i class="fas fa-music"></i> Favoriete Nummers</a></li>
-                    <li><a href="#downloads" class="nav-link"><i class="fas fa-download"></i> Downloads</a></li>
+                    <li><a href="#home" class="nav-item" data-section="home"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="#episodes" class="nav-item" data-section="episodes"><i class="fas fa-podcast"></i> Alle Afleveringen</a></li>
+                    <li><a href="#favorites" class="nav-item" data-section="favorites"><i class="fas fa-heart"></i> Favorieten</a></li>
+                    <li><a href="#favorite-songs" class="nav-item" data-section="favorite-songs"><i class="fas fa-music"></i> Favoriete Nummers</a></li>
+                    <li><a href="#downloads" class="nav-item" data-section="downloads"><i class="fas fa-download"></i> Downloads</a></li>
                 </ul>
             </nav>
-            <div class="sidebar-controls">
+            <div class="sidebar-actions">
                 <button id="refresh-button" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Vernieuwen</button>
+                <button id="shuffle-button" class="btn btn-secondary"><i class="fas fa-random"></i> Willekeurig</button>
+                <button id="continuous-button" class="btn btn-secondary"><i class="fas fa-infinity"></i> Doorlopend</button>
             </div>
         </div>
-
-        <!-- Main Content Area -->
         <div class="main-content">
-            <div class="content-header">
-                <h2 id="page-title">Home</h2>
-                <div class="playback-controls">
-                    <button id="random-button" class="btn btn-control"><i class="fas fa-random"></i> Willekeurig</button>
-                    <button id="continuous-button" class="btn btn-control"><i class="fas fa-infinity"></i> Doorlopend</button>
-                </div>
-            </div>
-
-            <!-- Content Pages -->
-            <div id="home-page" class="content-page active">
-                <div class="welcome-section">
-                    <h3>Welkom bij de Sublime Weekendmix Jukebox</h3>
-                    <p>Luister naar alle afleveringen van The Sublime Weekendmix in willekeurige volgorde, markeer je favorieten, en ontdek nieuwe muziek.</p>
-                </div>
+            <div class="section" id="home-section">
+                <h2>Welkom bij de Sublime Weekendmix Jukebox</h2>
+                <p>Luister naar alle afleveringen van The Sublime Weekendmix in willekeurige volgorde, markeer je favorieten, en ontdek nieuwe muziek.</p>
                 
-                <div class="recent-section">
-                    <h4>Recent Afgespeeld</h4>
-                    <div id="recent-episodes" class="episode-list">
-                        <p class="empty-message">Geen recente afleveringen</p>
-                    </div>
-                </div>
-                
-                <div class="favorites-section">
-                    <h4>Favoriete Afleveringen</h4>
-                    <div id="favorite-episodes" class="episode-list">
-                        <p class="empty-message">Geen favorieten</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="episodes-page" class="content-page">
-                <div id="episodes-list" class="episode-grid">
-                    <!-- Episodes will be loaded here -->
-                    <p class="loading-message">Afleveringen laden...</p>
-                </div>
-            </div>
-
-            <div id="favorites-page" class="content-page">
-                <div id="favorites-list" class="episode-grid">
-                    <!-- Favorites will be loaded here -->
-                    <p class="empty-message">Geen favoriete afleveringen gevonden.</p>
-                </div>
-            </div>
-
-            <div id="favorite-songs-page" class="content-page">
-                <div id="favorite-songs-list" class="song-list">
-                    <!-- Favorite songs will be loaded here -->
-                    <p class="empty-message">Geen favoriete nummers gevonden.</p>
-                </div>
-            </div>
-
-            <div id="downloads-page" class="content-page">
-                <div class="downloads-actions">
-                    <button id="download-all-button" class="btn btn-primary"><i class="fas fa-download"></i> Download Alle Afleveringen</button>
-                </div>
-                <div id="downloads-list" class="downloads-grid">
-                    <!-- Downloads will be loaded here -->
-                    <p class="empty-message">Geen downloads gevonden.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Player Section -->
-        <div class="player-container">
-            <div class="player-info">
-                <div class="episode-cover">
-                    <img id="episode-cover" src="/static/img/default-cover.jpg" alt="Episode Cover">
-                </div>
-                <div class="episode-details">
-                    <h3 id="episode-title">Geen aflevering geselecteerd</h3>
-                    <p id="episode-date"></p>
-                </div>
-            </div>
-            
-            <!-- Waveform Visualization -->
-            <div class="waveform-container">
-                <div id="waveform"></div>
-                <div id="waveform-timeline"></div>
-                <div id="song-markers"></div>
-            </div>
-            
-            <div class="player-controls">
-                <div class="time-controls">
-                    <span id="current-time">0:00</span>
-                    <div class="progress-container">
-                        <div id="progress-bar" class="progress-bar">
-                            <div id="progress" class="progress"></div>
+                <div class="home-sections">
+                    <div class="home-section">
+                        <h3>Recent Afgespeeld</h3>
+                        <div id="recent-episodes" class="home-episodes-list">
+                            <p>Geen recente afleveringen</p>
                         </div>
                     </div>
-                    <span id="duration">0:00</span>
-                </div>
-                <div class="playback-buttons">
-                    <button id="prev-button" class="btn btn-circle"><i class="fas fa-step-backward"></i></button>
-                    <button id="play-button" class="btn btn-circle btn-lg"><i class="fas fa-play"></i></button>
-                    <button id="next-button" class="btn btn-circle"><i class="fas fa-step-forward"></i></button>
-                    <button id="favorite-button" class="btn btn-circle" title="Markeer als favoriet"><i class="far fa-heart"></i></button>
-                    <button id="mark-song-button" class="btn btn-circle" title="Markeer nummer"><i class="fas fa-music"></i></button>
-                    <div class="volume-control">
-                        <i class="fas fa-volume-up"></i>
-                        <input type="range" id="volume-slider" min="0" max="100" value="100">
+                    
+                    <div class="home-section">
+                        <h3>Favoriete Afleveringen</h3>
+                        <div id="favorite-episodes" class="home-episodes-list">
+                            <p>Geen favorieten</p>
+                        </div>
                     </div>
+                </div>
+            </div>
+            
+            <div class="section" id="episodes-section">
+                <h2>Alle Afleveringen</h2>
+                <div class="episodes-container">
+                    <div class="loading">Afleveringen laden...</div>
+                </div>
+            </div>
+            
+            <div class="section" id="favorites-section">
+                <h2>Favorieten</h2>
+                <div class="favorites-container">
+                    <div class="loading">Favorieten laden...</div>
+                </div>
+            </div>
+            
+            <div class="section" id="favorite-songs-section">
+                <h2>Favoriete Nummers</h2>
+                <div class="favorite-songs-container">
+                    <div class="loading">Favoriete nummers laden...</div>
+                </div>
+            </div>
+            
+            <div class="section" id="downloads-section">
+                <h2>Downloads</h2>
+                <div class="downloads-container">
+                    <div class="loading">Downloads laden...</div>
+                </div>
+                <div class="download-actions">
+                    <button id="download-all-button" class="btn btn-primary"><i class="fas fa-download"></i> Download Alle Afleveringen</button>
                 </div>
             </div>
         </div>
     </div>
-
+    
+    <div class="player">
+        <div class="now-playing">
+            <div class="episode-image">
+                <img src="/static/img/default-cover.jpg" alt="Geen aflevering">
+            </div>
+            <div class="episode-info">
+                <h3>Geen aflevering geselecteerd</h3>
+                <p>Selecteer een aflevering om te beginnen met afspelen</p>
+            </div>
+        </div>
+        
+        <div class="waveform-container">
+            <div id="waveform"></div>
+            <div id="waveform-timeline"></div>
+            <div id="song-markers"></div>
+        </div>
+        
+        <div class="player-controls">
+            <button id="previous-button" class="btn btn-circle" disabled><i class="fas fa-step-backward"></i></button>
+            <button id="play-button" class="btn btn-circle btn-lg" disabled><i class="fas fa-play"></i></button>
+            <button id="next-button" class="btn btn-circle" disabled><i class="fas fa-step-forward"></i></button>
+            
+            <div class="time-display">
+                <span id="current-time">0:00</span> / <span id="duration">0:00</span>
+            </div>
+            
+            <div class="volume-control">
+                <i class="fas fa-volume-up"></i>
+                <input type="range" id="volume-slider" min="0" max="100" value="80">
+            </div>
+            
+            <div class="player-actions">
+                <button id="favorite-button" class="btn btn-circle" title="Markeer als favoriet" disabled><i class="far fa-heart"></i></button>
+                <button id="mark-song-button" class="btn btn-circle" title="Markeer nummer" disabled><i class="fas fa-music"></i></button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Song Marker Modal -->
     <div id="song-marker-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Markeer Nummer</h2>
-            <p>Tijdstip: <span id="marker-timestamp">0:00</span></p>
-            <div class="form-group">
-                <label for="song-title">Titel:</label>
-                <input type="text" id="song-title" placeholder="Voer titel in">
+            <div class="modal-header">
+                <h3>Markeer Nummer</h3>
+                <span class="close">&times;</span>
             </div>
-            <div class="form-group">
-                <label for="song-artist">Artiest:</label>
-                <input type="text" id="song-artist" placeholder="Voer artiest in">
+            <div class="modal-body">
+                <p>Tijdstip: <span id="marker-timestamp">0:00</span></p>
+                
+                <div class="form-group">
+                    <label for="song-title">Titel</label>
+                    <input type="text" id="song-title" placeholder="Voer titel in">
+                </div>
+                
+                <div class="form-group">
+                    <label for="song-artist">Artiest</label>
+                    <input type="text" id="song-artist" placeholder="Voer artiest in">
+                </div>
+                
+                <div class="form-group">
+                    <button id="search-spotify-button" class="btn btn-primary"><i class="fab fa-spotify"></i> Zoek op Spotify</button>
+                </div>
+                
+                <div id="spotify-results" class="spotify-results"></div>
             </div>
-            <button id="search-spotify-button" class="btn btn-primary">Zoek op Spotify</button>
-            
-            <div id="spotify-results" class="spotify-results">
-                <!-- Spotify search results will be displayed here -->
-            </div>
-            
-            <div class="modal-actions">
-                <button id="save-marker-button" class="btn btn-success">Opslaan</button>
+            <div class="modal-footer">
                 <button id="cancel-marker-button" class="btn btn-secondary">Annuleren</button>
+                <button id="save-marker-button" class="btn btn-primary">Opslaan</button>
             </div>
         </div>
     </div>
-
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.3/wavesurfer.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.3/plugin/wavesurfer.timeline.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.3/plugin/wavesurfer.markers.min.js"></script>
+    
     <script src="/static/js/app.js"></script>
     <script src="/static/js/waveform.js"></script>
     <script src="/static/js/spotify.js"></script>

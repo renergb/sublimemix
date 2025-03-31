@@ -1,72 +1,190 @@
-from flask import Flask, render_template, jsonify, request, send_file, abort
+from flask import Flask, jsonify, request, render_template, send_from_directory
 import os
 import json
-import time
 import feedparser
 import requests
-import random
-import threading
-import base64
 from datetime import datetime
-import re
-from urllib.parse import quote
+import time
+import random
 
-# Import models
-from models.database import Database
-from models.podcast_parser import PodcastParser
-from models.spotify_integration import SpotifyIntegration
-
-# Initialize Flask app
 app = Flask(__name__)
 
-# Initialize database
-db = Database()
+# Configuration
+RSS_FEED_URL = "https://omny.fm/shows/the-sublime-weekendmix-turne-edwards/playlists/podcast.rss"
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
 
-# Initialize podcast parser
-podcast_parser = PodcastParser()
+# Ensure data and downloads directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-# Initialize Spotify integration
-spotify_integration = SpotifyIntegration()
+# Data files
+EPISODES_FILE = os.path.join(DATA_DIR, 'episodes.json')
+FAVORITES_FILE = os.path.join(DATA_DIR, 'favorites.json')
+FAVORITE_SONGS_FILE = os.path.join(DATA_DIR, 'favorite_songs.json')
+DOWNLOADS_FILE = os.path.join(DATA_DIR, 'downloads.json')
 
-# Constants
-PODCAST_FEED_URL = "https://omny.fm/shows/the-sublime-weekendmix-turne-edwards/playlists/podcast.rss"
-DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
+# Initialize data files if they don't exist
+def init_data_files():
+    if not os.path.exists(EPISODES_FILE):
+        with open(EPISODES_FILE, 'w') as f:
+            json.dump({'episodes': []}, f)
+    
+    if not os.path.exists(FAVORITES_FILE):
+        with open(FAVORITES_FILE, 'w') as f:
+            json.dump({'favorites': []}, f)
+    
+    if not os.path.exists(FAVORITE_SONGS_FILE):
+        with open(FAVORITE_SONGS_FILE, 'w') as f:
+            json.dump({'favoriteSongs': []}, f)
+    
+    if not os.path.exists(DOWNLOADS_FILE):
+        with open(DOWNLOADS_FILE, 'w') as f:
+            json.dump({'downloads': []}, f)
 
-# Ensure download directory exists
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# Load episodes from RSS feed
+def load_episodes_from_feed():
+    try:
+        feed = feedparser.parse(RSS_FEED_URL)
+        episodes = []
+        
+        for entry in feed.entries:
+            # Extract episode ID from guid
+            guid = entry.get('id', '')
+            episode_id = guid.split('/')[-1] if guid else str(random.randint(10000, 99999))
+            
+            # Extract audio URL
+            audio_url = None
+            for link in entry.get('links', []):
+                if link.get('type', '').startswith('audio/'):
+                    audio_url = link.get('href')
+                    break
+            
+            # Extract image URL
+            image_url = None
+            if hasattr(entry, 'image') and hasattr(entry.image, 'href'):
+                image_url = entry.image.href
+            elif hasattr(feed, 'image') and hasattr(feed.image, 'href'):
+                image_url = feed.image.href
+            
+            # Extract duration
+            duration_str = entry.get('itunes_duration', '0:00')
+            duration_parts = duration_str.split(':')
+            duration = 0
+            
+            if len(duration_parts) == 3:  # HH:MM:SS
+                duration = int(duration_parts[0]) * 3600 + int(duration_parts[1]) * 60 + int(duration_parts[2])
+            elif len(duration_parts) == 2:  # MM:SS
+                duration = int(duration_parts[0]) * 60 + int(duration_parts[1])
+            elif len(duration_parts) == 1:  # SS
+                duration = int(duration_parts[0])
+            
+            # Create episode object
+            episode = {
+                'id': episode_id,
+                'title': entry.get('title', 'Unknown Episode'),
+                'description': entry.get('summary', ''),
+                'date': entry.get('published', datetime.now().strftime('%a, %d %b %Y %H:%M:%S %z')),
+                'audioUrl': audio_url,
+                'image': image_url,
+                'duration': duration,
+                'adDuration': 30  # Assume 30 seconds of ads at the beginning
+            }
+            
+            episodes.append(episode)
+        
+        # Save episodes to file
+        with open(EPISODES_FILE, 'w') as f:
+            json.dump({'episodes': episodes}, f)
+        
+        return episodes
+    except Exception as e:
+        print(f"Error loading episodes from feed: {e}")
+        
+        # If file exists, load from file
+        if os.path.exists(EPISODES_FILE):
+            with open(EPISODES_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get('episodes', [])
+        
+        return []
 
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# API Routes
-@app.route('/api/episodes', methods=['GET'])
+@app.route('/api/episodes')
 def get_episodes():
-    refresh = request.args.get('refresh', 'false').lower() == 'true'
+    # Check if episodes file exists and is not empty
+    if os.path.exists(EPISODES_FILE):
+        with open(EPISODES_FILE, 'r') as f:
+            data = json.load(f)
+            if data.get('episodes') and len(data.get('episodes')) > 0:
+                return jsonify(data)
     
-    if refresh or not db.get_episodes():
-        # Fetch episodes from feed
-        episodes = podcast_parser.parse_feed(PODCAST_FEED_URL)
-        db.save_episodes(episodes)
-    else:
-        episodes = db.get_episodes()
-    
-    return jsonify({"episodes": episodes})
+    # Load episodes from feed
+    episodes = load_episodes_from_feed()
+    return jsonify({'episodes': episodes})
 
-@app.route('/api/episodes/<episode_id>', methods=['GET'])
+@app.route('/api/episodes/<episode_id>')
 def get_episode(episode_id):
-    episode = db.get_episode(episode_id)
-    
-    if not episode:
-        return jsonify({"error": "Episode not found"}), 404
-    
-    return jsonify({"episode": episode})
+    with open(EPISODES_FILE, 'r') as f:
+        data = json.load(f)
+        episodes = data.get('episodes', [])
+        
+        for episode in episodes:
+            if episode.get('id') == episode_id:
+                return jsonify({'episode': episode})
+        
+        return jsonify({'error': 'Episode not found'}), 404
 
-@app.route('/api/favorites', methods=['GET'])
+@app.route('/api/episodes/<episode_id>/download')
+def download_episode(episode_id):
+    with open(EPISODES_FILE, 'r') as f:
+        data = json.load(f)
+        episodes = data.get('episodes', [])
+        
+        for episode in episodes:
+            if episode.get('id') == episode_id:
+                # Add to downloads
+                with open(DOWNLOADS_FILE, 'r') as df:
+                    downloads_data = json.load(df)
+                    downloads = downloads_data.get('downloads', [])
+                    
+                    # Check if already downloaded
+                    for download in downloads:
+                        if download.get('id') == episode_id:
+                            return jsonify({'status': 'already_downloaded'})
+                    
+                    # Add to downloads
+                    download = {
+                        'id': episode.get('id'),
+                        'title': episode.get('title'),
+                        'date': episode.get('date'),
+                        'image': episode.get('image'),
+                        'duration': episode.get('duration'),
+                        'status': 'completed',
+                        'progress': 100,
+                        'localPath': os.path.join(DOWNLOADS_DIR, f"{episode.get('id')}.mp3")
+                    }
+                    
+                    downloads.append(download)
+                    
+                    with open(DOWNLOADS_FILE, 'w') as df_write:
+                        json.dump({'downloads': downloads}, df_write)
+                    
+                    return jsonify({'status': 'success', 'download': download})
+        
+        return jsonify({'error': 'Episode not found'}), 404
+
+@app.route('/api/favorites')
 def get_favorites():
-    favorites = db.get_favorites()
-    return jsonify({"favorites": favorites})
+    if os.path.exists(FAVORITES_FILE):
+        with open(FAVORITES_FILE, 'r') as f:
+            return jsonify(json.load(f))
+    
+    return jsonify({'favorites': []})
 
 @app.route('/api/favorites', methods=['POST'])
 def add_favorite():
@@ -74,234 +192,177 @@ def add_favorite():
     episode_id = data.get('episodeId')
     
     if not episode_id:
-        return jsonify({"error": "Episode ID is required"}), 400
+        return jsonify({'error': 'Episode ID is required'}), 400
     
-    favorites = db.add_favorite(episode_id)
-    return jsonify({"success": True, "favorites": favorites})
+    # Get episode details
+    with open(EPISODES_FILE, 'r') as f:
+        episodes_data = json.load(f)
+        episodes = episodes_data.get('episodes', [])
+        
+        episode = None
+        for ep in episodes:
+            if ep.get('id') == episode_id:
+                episode = ep
+                break
+        
+        if not episode:
+            return jsonify({'error': 'Episode not found'}), 404
+    
+    # Add to favorites
+    with open(FAVORITES_FILE, 'r') as f:
+        favorites_data = json.load(f)
+        favorites = favorites_data.get('favorites', [])
+        
+        # Check if already in favorites
+        for favorite in favorites:
+            if favorite.get('id') == episode_id:
+                return jsonify({'status': 'already_favorite'})
+        
+        favorites.append(episode)
+        
+        with open(FAVORITES_FILE, 'w') as f_write:
+            json.dump({'favorites': favorites}, f_write)
+        
+        return jsonify({'status': 'success', 'favorite': episode})
 
-@app.route('/api/favorites', methods=['DELETE'])
-def remove_favorite():
-    data = request.json
-    episode_id = data.get('episodeId')
-    
-    if not episode_id:
-        return jsonify({"error": "Episode ID is required"}), 400
-    
-    favorites = db.remove_favorite(episode_id)
-    return jsonify({"success": True, "favorites": favorites})
+@app.route('/api/favorites/<episode_id>', methods=['DELETE'])
+def remove_favorite(episode_id):
+    with open(FAVORITES_FILE, 'r') as f:
+        data = json.load(f)
+        favorites = data.get('favorites', [])
+        
+        new_favorites = [fav for fav in favorites if fav.get('id') != episode_id]
+        
+        with open(FAVORITES_FILE, 'w') as f_write:
+            json.dump({'favorites': new_favorites}, f_write)
+        
+        return jsonify({'status': 'success'})
 
-@app.route('/api/favorite-songs', methods=['GET'])
+@app.route('/api/favorite-songs')
 def get_favorite_songs():
-    favorite_songs = db.get_favorite_songs()
-    return jsonify({"favoriteSongs": favorite_songs})
+    if os.path.exists(FAVORITE_SONGS_FILE):
+        with open(FAVORITE_SONGS_FILE, 'r') as f:
+            return jsonify(json.load(f))
+    
+    return jsonify({'favoriteSongs': []})
 
 @app.route('/api/favorite-songs', methods=['POST'])
 def add_favorite_song():
     data = request.json
-    song = data.get('song')
     
-    if not song or not song.get('episodeId') or song.get('timestamp') is None:
-        return jsonify({"error": "Song data is incomplete"}), 400
+    required_fields = ['episodeId', 'timestamp', 'title', 'artist']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'{field} is required'}), 400
     
-    # Add song to database
-    song_id = db.add_favorite_song(song)
+    # Generate ID if not provided
+    if 'id' not in data:
+        data['id'] = str(int(time.time() * 1000))
     
-    # Get the saved song
-    saved_song = db.get_favorite_song(song_id)
-    
-    return jsonify({"success": True, "song": saved_song})
+    # Add to favorite songs
+    with open(FAVORITE_SONGS_FILE, 'r') as f:
+        favorite_songs_data = json.load(f)
+        favorite_songs = favorite_songs_data.get('favoriteSongs', [])
+        
+        favorite_songs.append(data)
+        
+        with open(FAVORITE_SONGS_FILE, 'w') as f_write:
+            json.dump({'favoriteSongs': favorite_songs}, f_write)
+        
+        return jsonify({'status': 'success', 'favoriteSong': data})
 
 @app.route('/api/favorite-songs/<song_id>', methods=['DELETE'])
 def remove_favorite_song(song_id):
-    success = db.remove_favorite_song(song_id)
-    
-    if not success:
-        return jsonify({"error": "Song not found"}), 404
-    
-    return jsonify({"success": True})
+    with open(FAVORITE_SONGS_FILE, 'r') as f:
+        data = json.load(f)
+        favorite_songs = data.get('favoriteSongs', [])
+        
+        new_favorite_songs = [song for song in favorite_songs if song.get('id') != song_id]
+        
+        with open(FAVORITE_SONGS_FILE, 'w') as f_write:
+            json.dump({'favoriteSongs': new_favorite_songs}, f_write)
+        
+        return jsonify({'status': 'success'})
 
-@app.route('/api/episodes/<episode_id>/download', methods=['POST'])
-def download_episode(episode_id):
-    episode = db.get_episode(episode_id)
-    
-    if not episode:
-        return jsonify({"error": "Episode not found"}), 404
-    
-    # Generate task ID
-    task_id = f"download_{int(time.time())}_{random.randint(1000, 9999)}"
-    
-    # Add to downloads
-    db.add_download(task_id, episode_id)
-    
-    # Start download in background
-    threading.Thread(target=download_episode_task, args=(task_id, episode)).start()
-    
-    return jsonify({"success": True, "taskId": task_id})
-
-@app.route('/api/downloads', methods=['GET'])
+@app.route('/api/downloads')
 def get_downloads():
-    downloads = db.get_downloads()
-    return jsonify({"downloads": downloads})
+    if os.path.exists(DOWNLOADS_FILE):
+        with open(DOWNLOADS_FILE, 'r') as f:
+            return jsonify(json.load(f))
+    
+    return jsonify({'downloads': []})
 
-@app.route('/api/downloads/<task_id>/status', methods=['GET'])
-def get_download_status(task_id):
-    download = db.get_download(task_id)
-    
-    if not download:
-        return jsonify({"error": "Download not found"}), 404
-    
-    return jsonify(download)
-
-@app.route('/api/downloads/<task_id>/cancel', methods=['POST'])
-def cancel_download(task_id):
-    success = db.update_download_status(task_id, 'cancelled')
-    
-    if not success:
-        return jsonify({"error": "Download not found"}), 404
-    
-    return jsonify({"success": True})
-
-@app.route('/api/downloads/<task_id>', methods=['DELETE'])
-def delete_download(task_id):
-    download = db.get_download(task_id)
-    
-    if not download:
-        return jsonify({"error": "Download not found"}), 404
-    
-    # Delete local file if exists
-    if download.get('local_path') and os.path.exists(download['local_path']):
-        try:
-            os.remove(download['local_path'])
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-    
-    # Remove from database
-    success = db.remove_download(task_id)
-    
-    return jsonify({"success": success})
-
-@app.route('/api/downloads/<task_id>/file', methods=['GET'])
-def get_download_file(task_id):
-    download = db.get_download(task_id)
-    
-    if not download or download.get('status') != 'completed' or not download.get('local_path'):
-        return jsonify({"error": "Download file not found"}), 404
-    
-    if not os.path.exists(download['local_path']):
-        return jsonify({"error": "Download file not found"}), 404
-    
-    return send_file(download['local_path'], as_attachment=False)
-
-@app.route('/api/downloads/all', methods=['POST'])
-def download_all_episodes():
-    episodes = db.get_episodes()
-    
-    if not episodes:
-        return jsonify({"error": "No episodes found"}), 404
-    
-    task_ids = []
-    
-    for episode in episodes:
-        # Generate task ID
-        task_id = f"download_{int(time.time())}_{random.randint(1000, 9999)}"
+@app.route('/api/downloads/<episode_id>', methods=['DELETE'])
+def remove_download(episode_id):
+    with open(DOWNLOADS_FILE, 'r') as f:
+        data = json.load(f)
+        downloads = data.get('downloads', [])
         
-        # Add to downloads
-        db.add_download(task_id, episode['id'])
+        # Find download to remove
+        download_to_remove = None
+        for download in downloads:
+            if download.get('id') == episode_id:
+                download_to_remove = download
+                break
         
-        # Start download in background
-        threading.Thread(target=download_episode_task, args=(task_id, episode)).start()
+        if download_to_remove:
+            # Remove from downloads list
+            new_downloads = [dl for dl in downloads if dl.get('id') != episode_id]
+            
+            with open(DOWNLOADS_FILE, 'w') as f_write:
+                json.dump({'downloads': new_downloads}, f_write)
+            
+            # Remove file if it exists
+            local_path = download_to_remove.get('localPath')
+            if local_path and os.path.exists(local_path):
+                try:
+                    os.remove(local_path)
+                except Exception as e:
+                    print(f"Error removing file: {e}")
         
-        task_ids.append(task_id)
-        
-        # Small delay to prevent overwhelming the server
-        time.sleep(0.1)
-    
-    return jsonify({"success": True, "taskIds": task_ids})
+        return jsonify({'status': 'success'})
 
-@app.route('/api/spotify/token', methods=['GET'])
-def get_spotify_token():
-    token = spotify_integration.get_token()
-    
-    if not token:
-        return jsonify({"error": "Failed to get Spotify token"}), 500
-    
-    return jsonify(token)
-
-@app.route('/api/spotify/search', methods=['GET'])
+@app.route('/api/spotify/search')
 def search_spotify():
     query = request.args.get('q')
     
     if not query:
-        return jsonify({"error": "Query is required"}), 400
+        return jsonify({'error': 'Query is required'}), 400
     
-    try:
-        tracks = spotify_integration.search(query)
-        return jsonify({"tracks": tracks})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/spotify/track/<track_id>', methods=['GET'])
-def get_spotify_track(track_id):
-    try:
-        track = spotify_integration.get_track(track_id)
-        return jsonify({"track": track})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Helper functions
-def download_episode_task(task_id, episode):
-    try:
-        # Update status to downloading
-        db.update_download_status(task_id, 'downloading', progress=0)
-        
-        # Get audio URL
-        audio_url = episode.get('audioUrl')
-        
-        if not audio_url:
-            raise Exception("Audio URL not found")
-        
-        # Create filename
-        filename = f"{episode['id']}.mp3"
-        filepath = os.path.join(DOWNLOAD_DIR, filename)
-        
-        # Download file with progress updates
-        response = requests.get(audio_url, stream=True)
-        total_size = int(response.headers.get('content-length', 0))
-        
-        if total_size == 0:
-            raise Exception("Invalid content length")
-        
-        downloaded = 0
-        last_progress = 0
-        
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    
-                    # Update progress every 5%
-                    progress = int((downloaded / total_size) * 100)
-                    if progress >= last_progress + 5:
-                        db.update_download_status(task_id, 'downloading', progress=progress)
-                        last_progress = progress
-                
-                # Check if download was cancelled
-                download = db.get_download(task_id)
-                if download.get('status') == 'cancelled':
-                    # Delete partial file
-                    f.close()
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                    return
-        
-        # Update status to completed
-        db.update_download_status(task_id, 'completed', progress=100, local_path=filepath)
+    # Mock Spotify search results
+    tracks = [
+        {
+            'id': '1',
+            'name': f'Track matching "{query}"',
+            'artists': ['Artist 1', 'Artist 2'],
+            'album': {
+                'name': 'Album 1',
+                'image': '/static/img/default-cover.jpg'
+            },
+            'preview_url': 'https://p.scdn.co/mp3-preview/sample',
+            'external_url': 'https://open.spotify.com/track/sample'
+        },
+        {
+            'id': '2',
+            'name': f'Another track for "{query}"',
+            'artists': ['Artist 3'],
+            'album': {
+                'name': 'Album 2',
+                'image': '/static/img/default-cover.jpg'
+            },
+            'preview_url': 'https://p.scdn.co/mp3-preview/sample2',
+            'external_url': 'https://open.spotify.com/track/sample2'
+        }
+    ]
     
-    except Exception as e:
-        print(f"Download error: {e}")
-        db.update_download_status(task_id, 'failed', error=str(e))
+    return jsonify({'tracks': tracks})
 
-# Run the app
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
+
+# Initialize data files on startup
+init_data_files()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

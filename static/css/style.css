@@ -1,19 +1,15 @@
-/* Main Styles for Sublime Weekendmix Jukebox */
-
+/* Main Styles */
 :root {
-    /* Color Variables */
-    --primary-color: #1db954; /* Spotify Green */
-    --primary-dark: #1aa34a;
-    --secondary-color: #ff5500; /* Orange for highlights */
-    --background-dark: #121212;
-    --background-medium: #181818;
-    --background-light: #282828;
-    --text-primary: #ffffff;
-    --text-secondary: #b3b3b3;
-    --border-color: #333333;
+    --primary-color: #1db954; /* Spotify green */
+    --secondary-color: #191414; /* Dark background */
+    --text-color: #ffffff;
+    --highlight-color: #ff5500; /* Orange for highlights */
+    --gray-color: #b3b3b3;
+    --dark-gray-color: #535353;
+    --sidebar-width: 250px;
+    --player-height: 180px;
 }
 
-/* Base Styles */
 * {
     margin: 0;
     padding: 0;
@@ -22,182 +18,122 @@
 
 body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
-    background-color: var(--background-dark);
-    color: var(--text-primary);
-    line-height: 1.5;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    line-height: 1.6;
 }
 
-a {
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: color 0.3s ease;
+.container {
+    display: flex;
+    height: calc(100vh - var(--player-height));
 }
 
-a:hover {
-    color: var(--primary-color);
-}
-
-button {
-    cursor: pointer;
-    border: none;
-    outline: none;
-    background: none;
-    font-family: inherit;
-}
-
-/* Layout */
-.app-container {
-    display: grid;
-    grid-template-columns: 250px 1fr;
-    grid-template-rows: 1fr auto;
-    grid-template-areas:
-        "sidebar main"
-        "player player";
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* Sidebar */
+/* Sidebar Styles */
 .sidebar {
-    grid-area: sidebar;
-    background-color: var(--background-dark);
-    border-right: 1px solid var(--border-color);
-    padding: 20px 0;
+    width: var(--sidebar-width);
+    background-color: #000000;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    height: 100%;
 }
 
 .logo {
-    padding: 0 20px 20px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 30px;
 }
 
 .logo h1 {
     color: var(--primary-color);
     font-size: 24px;
-    font-weight: 700;
+    margin-bottom: 0;
 }
 
 .logo p {
-    color: var(--text-secondary);
+    color: var(--gray-color);
     font-size: 14px;
 }
 
-nav {
-    flex: 1;
-    padding: 20px 0;
-}
-
-nav ul {
+.main-nav ul {
     list-style: none;
 }
 
-nav li {
-    margin-bottom: 5px;
+.main-nav li {
+    margin-bottom: 15px;
 }
 
-.nav-link {
+.main-nav a {
+    color: var(--gray-color);
+    text-decoration: none;
     display: flex;
     align-items: center;
-    padding: 10px 20px;
+    transition: color 0.3s;
     font-size: 16px;
-    font-weight: 500;
-    transition: background-color 0.3s ease;
 }
 
-.nav-link i {
+.main-nav a:hover, .main-nav a.active {
+    color: var(--text-color);
+}
+
+.main-nav a i {
     margin-right: 10px;
     width: 20px;
     text-align: center;
 }
 
-.nav-link:hover, .nav-link.active {
-    background-color: var(--background-light);
-    color: var(--primary-color);
-}
-
-.sidebar-controls {
-    padding: 20px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Main Content */
-.main-content {
-    grid-area: main;
-    background-color: var(--background-medium);
-    overflow-y: auto;
-    padding: 20px;
-}
-
-.content-header {
+.sidebar-actions {
+    margin-top: auto;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.content-header h2 {
-    font-size: 28px;
-    font-weight: 700;
-}
-
-.playback-controls {
-    display: flex;
+    flex-direction: column;
     gap: 10px;
 }
 
-/* Content Pages */
-.content-page {
+/* Main Content Styles */
+.main-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.section {
     display: none;
 }
 
-.content-page.active {
+.section.active {
     display: block;
 }
 
-.welcome-section, .recent-section, .favorites-section {
-    margin-bottom: 30px;
+h2 {
+    margin-bottom: 20px;
+    font-size: 28px;
 }
 
-.welcome-section h3, .recent-section h4, .favorites-section h4 {
-    margin-bottom: 10px;
-    font-weight: 600;
-}
-
-.episode-list, .episode-grid, .song-list, .downloads-grid {
+/* Episodes List Styles */
+.episodes-container, .favorites-container, .favorite-songs-container, .downloads-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
 }
 
-.empty-message, .loading-message {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 20px;
-    color: var(--text-secondary);
-}
-
-/* Episode Card */
-.episode-card {
-    background-color: var(--background-light);
-    border-radius: 6px;
+.episode {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
     overflow: hidden;
-    transition: transform 0.3s ease, background-color 0.3s ease;
+    transition: transform 0.3s, background-color 0.3s;
 }
 
-.episode-card:hover {
+.episode:hover {
+    background-color: rgba(255, 255, 255, 0.1);
     transform: translateY(-5px);
-    background-color: var(--background-light);
 }
 
-.episode-cover {
+.episode-image {
     position: relative;
+    width: 100%;
     padding-top: 100%; /* 1:1 Aspect Ratio */
     overflow: hidden;
 }
 
-.episode-cover img {
+.episode-image img {
     position: absolute;
     top: 0;
     left: 0;
@@ -218,9 +154,9 @@ nav li {
     text-overflow: ellipsis;
 }
 
-.episode-info p {
+.episode-date, .episode-duration {
+    color: var(--gray-color);
     font-size: 14px;
-    color: var(--text-secondary);
 }
 
 .episode-actions {
@@ -229,287 +165,214 @@ nav li {
     padding: 0 15px 15px;
 }
 
-/* Player */
-.player-container {
-    grid-area: player;
-    background-color: var(--background-light);
-    border-top: 1px solid var(--border-color);
-    padding: 15px;
-    display: grid;
-    grid-template-columns: 250px 1fr;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-        "info waveform"
-        "info controls";
-    gap: 15px;
+.episode-actions button {
+    background: none;
+    border: none;
+    color: var(--gray-color);
+    cursor: pointer;
+    transition: color 0.3s;
 }
 
-.player-info {
-    grid-area: info;
+.episode-actions button:hover {
+    color: var(--primary-color);
+}
+
+.episode-actions .favorite-episode.active {
+    color: var(--highlight-color);
+}
+
+/* Player Styles */
+.player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--player-height);
+    background-color: #181818;
+    border-top: 1px solid #282828;
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.now-playing {
     display: flex;
     align-items: center;
-    gap: 15px;
+    margin-bottom: 10px;
 }
 
-.player-info .episode-cover {
-    width: 80px;
-    height: 80px;
+.now-playing .episode-image {
+    width: 60px;
+    height: 60px;
     padding-top: 0;
+    margin-right: 15px;
     flex-shrink: 0;
 }
 
-.episode-details {
-    overflow: hidden;
+.now-playing .episode-info {
+    padding: 0;
+    flex: 1;
 }
 
-.episode-details h3 {
-    font-size: 16px;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.episode-details p {
+.now-playing .episode-info h3 {
     font-size: 14px;
-    color: var(--text-secondary);
 }
 
-/* Waveform */
+.now-playing .episode-info p {
+    font-size: 12px;
+    color: var(--gray-color);
+}
+
 .waveform-container {
-    grid-area: waveform;
-    position: relative;
-    height: 80px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
 }
 
 #waveform {
     height: 60px;
-    background-color: var(--background-medium);
+    background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
 
 #waveform-timeline {
     height: 20px;
-    font-size: 12px;
-    color: var(--text-secondary);
+    margin-top: 5px;
 }
 
 #song-markers {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 60px;
-    pointer-events: none;
-}
-
-.song-marker {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    width: 2px;
-    background-color: var(--secondary-color);
-    z-index: 10;
-}
-
-.song-marker.active {
-    background-color: #3498db; /* Blue for active marker */
-}
-
-.song-marker-tooltip {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--background-dark);
-    color: var(--text-primary);
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 20;
-}
-
-.song-marker:hover .song-marker-tooltip {
-    opacity: 1;
-}
-
-/* Player Controls */
-.player-controls {
-    grid-area: controls;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.time-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.progress-container {
-    flex: 1;
-    height: 4px;
-    background-color: var(--background-medium);
-    border-radius: 2px;
-    overflow: hidden;
-    cursor: pointer;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 100%;
     position: relative;
+    height: 20px;
 }
 
-.progress {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 0;
-    background-color: var(--primary-color);
-    border-radius: 2px;
-}
-
-.playback-buttons {
+.player-controls {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 15px;
+}
+
+.btn {
+    background-color: transparent;
+    color: var(--text-color);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+}
+
+.btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .btn-circle {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--background-medium);
-    color: var(--text-primary);
-    transition: all 0.3s ease;
-}
-
-.btn-circle:hover {
-    background-color: var(--primary-dark);
-    color: var(--text-primary);
 }
 
 .btn-lg {
-    width: 48px;
-    height: 48px;
-    font-size: 18px;
+    width: 40px;
+    height: 40px;
+}
+
+.btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover {
+    background-color: #1ed760; /* Lighter green */
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.time-display {
+    margin: 0 15px;
+    color: var(--gray-color);
+    font-size: 12px;
 }
 
 .volume-control {
     display: flex;
     align-items: center;
-    gap: 10px;
     margin-left: auto;
 }
 
 .volume-control i {
-    color: var(--text-secondary);
-    width: 20px;
-    text-align: center;
+    margin-right: 8px;
+    color: var(--gray-color);
 }
 
 #volume-slider {
     width: 80px;
-    height: 4px;
     -webkit-appearance: none;
-    background-color: var(--background-medium);
+    height: 4px;
+    background: var(--gray-color);
     border-radius: 2px;
-    outline: none;
 }
 
 #volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 12px;
     height: 12px;
+    background: var(--text-color);
     border-radius: 50%;
-    background-color: var(--primary-color);
     cursor: pointer;
 }
 
-/* Buttons */
-.btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.3s ease;
+.player-actions {
+    margin-left: 15px;
+    display: flex;
+    gap: 10px;
 }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: var(--primary-dark);
-}
-
-.btn-control {
-    background-color: var(--background-light);
-    color: var(--text-primary);
-}
-
-.btn-control:hover {
-    background-color: var(--background-medium);
-}
-
-.btn-success {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.btn-secondary {
-    background-color: var(--background-light);
-    color: var(--text-primary);
-}
-
-/* Modal */
+/* Modal Styles */
 .modal {
     display: none;
     position: fixed;
-    top: 0;
+    z-index: 1000;
     left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
 }
 
 .modal-content {
-    background-color: var(--background-medium);
-    border-radius: 8px;
+    background-color: #282828;
+    margin: 10% auto;
     padding: 20px;
-    width: 90%;
+    border-radius: 8px;
+    width: 80%;
     max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
 .close {
-    color: var(--text-secondary);
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    color: var(--gray-color);
+    font-size: 24px;
     cursor: pointer;
 }
 
 .close:hover {
-    color: var(--text-primary);
+    color: var(--text-color);
 }
 
 .form-group {
@@ -519,180 +382,234 @@ nav li {
 .form-group label {
     display: block;
     margin-bottom: 5px;
-    font-weight: 500;
+    color: var(--gray-color);
 }
 
 .form-group input {
     width: 100%;
-    padding: 10px;
+    padding: 8px;
+    background-color: #3e3e3e;
+    border: none;
     border-radius: 4px;
-    border: 1px solid var(--border-color);
-    background-color: var(--background-dark);
-    color: var(--text-primary);
-    font-size: 14px;
+    color: var(--text-color);
 }
 
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-/* Spotify Results */
 .spotify-results {
-    margin-top: 20px;
     max-height: 300px;
     overflow-y: auto;
-    display: none;
+    margin-top: 15px;
 }
 
 .spotify-track {
     display: flex;
     align-items: center;
-    gap: 10px;
     padding: 10px;
     border-radius: 4px;
-    background-color: var(--background-dark);
-    margin-bottom: 10px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s;
 }
 
 .spotify-track:hover {
-    background-color: var(--background-light);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
-.spotify-track-cover {
-    width: 50px;
-    height: 50px;
-    border-radius: 4px;
-    overflow: hidden;
+.spotify-track.selected {
+    background-color: rgba(29, 185, 84, 0.2);
 }
 
-.spotify-track-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.spotify-track-image {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
 }
 
 .spotify-track-info {
     flex: 1;
-    overflow: hidden;
 }
 
-.spotify-track-info h4 {
+.spotify-track-title {
     font-size: 14px;
     margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.spotify-track-info p {
+.spotify-track-artist {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--gray-color);
 }
 
 .spotify-track-actions {
     display: flex;
-    align-items: center;
+    gap: 5px;
 }
 
-/* Downloads Page */
-.downloads-actions {
-    margin-bottom: 20px;
-}
-
-.download-item {
-    background-color: var(--background-light);
-    border-radius: 6px;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.download-progress {
-    height: 4px;
-    background-color: var(--background-medium);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.download-progress-bar {
-    height: 100%;
-    background-color: var(--primary-color);
-    width: 0;
-}
-
-.download-actions {
+.modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+    margin-top: 20px;
 }
 
-/* Responsive Design */
+/* Responsive Styles */
 @media (max-width: 768px) {
-    .app-container {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "main"
-            "player";
+    .container {
+        flex-direction: column;
     }
-
+    
     .sidebar {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 250px;
-        height: 100%;
-        z-index: 50;
+        width: 100%;
+        height: auto;
+        padding: 10px;
     }
-
-    .sidebar.active {
+    
+    .main-nav ul {
         display: flex;
+        overflow-x: auto;
+        padding-bottom: 10px;
     }
-
-    .player-container {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "info"
-            "waveform"
-            "controls";
+    
+    .main-nav li {
+        margin-right: 15px;
+        margin-bottom: 0;
     }
-
-    .waveform-container {
+    
+    .sidebar-actions {
+        flex-direction: row;
+        margin-top: 10px;
+    }
+    
+    .main-content {
+        height: calc(100vh - var(--player-height) - 150px);
+    }
+    
+    .episodes-container, .favorites-container, .favorite-songs-container, .downloads-container {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    
+    .player {
+        height: auto;
+        padding: 10px;
+    }
+    
+    .now-playing .episode-image {
+        width: 40px;
         height: 40px;
     }
-
+    
     #waveform {
-        height: 30px;
+        height: 40px;
     }
-
-    #waveform-timeline {
-        height: 10px;
+    
+    .player-controls {
+        flex-wrap: wrap;
     }
-
-    .player-info {
-        justify-content: center;
-    }
-
-    .episode-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    
+    .volume-control {
+        margin-left: 0;
+        margin-top: 10px;
     }
 }
 
-/* Utility Classes */
-.hidden {
-    display: none !important;
+/* Loading Animation */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: var(--gray-color);
 }
 
-.active {
-    color: var(--primary-color);
+.loading:after {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 2px solid var(--gray-color);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
 }
 
-.favorite {
-    color: var(--secondary-color);
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Song Marker Styles */
+.marker {
+    position: absolute;
+    width: 2px;
+    background-color: var(--highlight-color);
+    height: 100%;
+    cursor: pointer;
+}
+
+.marker:hover::after {
+    content: attr(data-title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: var(--text-color);
+    padding: 5px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 12px;
+    z-index: 10;
+}
+
+/* Home Sections */
+.home-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.home-section {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.home-episodes-list {
+    margin-top: 10px;
+}
+
+.home-episode {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.home-episode:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.home-episode-image {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+}
+
+.home-episode-info {
+    flex: 1;
+}
+
+.home-episode-title {
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.home-episode-date {
+    font-size: 12px;
+    color: var(--gray-color);
+}
+
+@media (max-width: 768px) {
+    .home-sections {
+        grid-template-columns: 1fr;
+    }
 }
