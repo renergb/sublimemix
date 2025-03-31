@@ -83,45 +83,45 @@ class Database:
         
         conn.commit()
     
-    def add_episode(self, episode_data):
-        """Add a new episode to the database."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Check if episode already exists
-        cursor.execute('SELECT id FROM episodes WHERE id = ?', (episode_data['id'],))
-        if cursor.fetchone():
-            # Update existing episode
-            cursor.execute('''
+    def add_episode(self, id, title, description, publication_date, audio_url, image_url=None, duration=0):
+    """Add or update an episode in the database."""
+    conn = self.get_connection()
+    cursor = conn.cursor()
+
+    # Check if episode already exists
+    cursor.execute('SELECT id FROM episodes WHERE id = ?', (id,))
+    if cursor.fetchone():
+        # Update existing episode
+        cursor.execute('''
             UPDATE episodes
             SET title = ?, description = ?, publication_date = ?, audio_url = ?, image_url = ?, duration = ?
             WHERE id = ?
-            ''', (
-                episode_data['title'],
-                episode_data.get('description', ''),
-                episode_data.get('publication_date', ''),
-                episode_data['audio_url'],
-                episode_data.get('image_url', ''),
-                episode_data.get('duration', 0),
-                episode_data['id']
-            ))
-        else:
-            # Insert new episode
-            cursor.execute('''
+        ''', (
+            title,
+            description or '',
+            publication_date or '',
+            audio_url,
+            image_url or '',
+            duration or 0,
+            id
+        ))
+    else:
+        # Insert new episode
+        cursor.execute('''
             INSERT INTO episodes (id, title, description, publication_date, audio_url, image_url, duration)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                episode_data['id'],
-                episode_data['title'],
-                episode_data.get('description', ''),
-                episode_data.get('publication_date', ''),
-                episode_data['audio_url'],
-                episode_data.get('image_url', ''),
-                episode_data.get('duration', 0)
-            ))
-        
-        conn.commit()
-        return episode_data['id']
+        ''', (
+            id,
+            title,
+            description or '',
+            publication_date or '',
+            audio_url,
+            image_url or '',
+            duration or 0
+        ))
+
+    conn.commit()
+    return id
     
     def get_episode(self, episode_id):
         """Get a specific episode by ID."""
