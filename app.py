@@ -90,7 +90,7 @@ def refresh_episodes():
     if not parsed.get('success'):
         return jsonify({"success": False, "message": "Failed to parse RSS feed", "details": parsed}), 500
 
-    ...        return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
+            return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
 
     new_count = 0
     for item in parsed.get('episodes', []):
