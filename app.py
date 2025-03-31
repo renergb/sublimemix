@@ -1,12 +1,3 @@
-
-import os
-
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
-
-
-
 import os
 import requests
 from flask import Flask, jsonify, request, render_template, send_from_directory, send_file
@@ -26,7 +17,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Initialize database
-db = Database(data_dir=os.path.dirname(os.path.abspath(__file__)))
+db = Database()
 
 # Initialize podcast parser with The Sublime Weekendmix RSS feed
 PODCAST_FEED_URL = "https://www.omnycontent.com/d/playlist/803f1544-419a-4fea-962b-acdb0133575d/fc3e7e4d-ccec-4eaa-ac4f-ad8800fe0af6/d17ea2a1-6ead-4392-aff0-ad8800fe4119/podcast.rss"
@@ -51,57 +42,18 @@ def index():
     """Render the main application page."""
     return render_template('index.html')
 
-@app.route('/api/episodes/add', methods=['POST'])
-def add_episode():
-    data = request.json
-    if not data:
-        return jsonify({"success": False, "message": "No data provided"}), 400
-
-    required_fields = ['id', 'title', 'audio_url']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({"success": False, "message": f"Missing required field: {field}"}), 400
-
-    db.add_episode(
-        id=data['id'],
-        title=data['title'],
-        description=data.get('description', ''),
-        publication_date=data.get('publication_date', ''),
-        audio_url=data['audio_url'],
-        image_url=data.get('image_url', ''),
-        duration=data.get('duration', 0)
-    )
-
-    return jsonify({"success": True, "message": "Episode added/updated"})
-
 # API Endpoints
+@app.route('/api/episodes', methods=['GET'])
+def get_episodes():
+    """Get all episodes."""
+    episodes = db.get_all_episodes()
+    return jsonify({"success": True, "episodes": episodes})
+
 @app.route('/api/episodes/refresh', methods=['GET'])
 def refresh_episodes():
-    parsed = podcast_parser.parse_feed()
-    print("=== Parsed RSS result ===")
-    print(parsed)
-
-    if not parsed.get('success'):
-        return jsonify({"success": False, "message": "Failed to parse RSS feed", "details": parsed}), 500
-
-    new_count = 0
-    for item in parsed.get('episodes', []):
-        # Check required fields
-        if not all(k in item for k in ('id', 'title', 'audio_url')):
-            continue
-
-        db.add_episode(
-            id=item['id'],
-            title=item['title'],
-            description=item.get('description', ''),
-            publication_date=item.get('publication_date', ''),
-            audio_url=item['audio_url'],
-            image_url=item.get('image_url', ''),
-            duration=item.get('duration', 0),
-        )
-        new_count += 1
-
-    return jsonify({"success": True, "message": f"{new_count} episodes added or updated"})
+    """Refresh episodes from the RSS feed."""
+    result = podcast_parser.parse_feed()
+    return jsonify(result)
 
 @app.route('/api/episodes/<int:episode_id>', methods=['GET'])
 def get_episode(episode_id):
