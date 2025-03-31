@@ -26,7 +26,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Initialize database
-db = Database()
+db = Database(data_dir=os.path.dirname(os.path.abspath(__file__)))
 
 # Initialize podcast parser with The Sublime Weekendmix RSS feed
 PODCAST_FEED_URL = "https://www.omnycontent.com/d/playlist/803f1544-419a-4fea-962b-acdb0133575d/fc3e7e4d-ccec-4eaa-ac4f-ad8800fe0af6/d17ea2a1-6ead-4392-aff0-ad8800fe4119/podcast.rss"
