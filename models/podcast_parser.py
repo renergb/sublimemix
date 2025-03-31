@@ -1,108 +1,239 @@
 import feedparser
-import requests
-import json
-from datetime import datetime
 import re
-from .database import Database
+import time
+import requests
+from datetime import datetime
 
-class PodcastFeedParser:
-    def __init__(self, feed_url, db):
-        """Initialize the podcast feed parser with the feed URL and database connection."""
-        self.feed_url = feed_url
-        self.db = db
+class PodcastParser:
+    """Parser for podcast feeds."""
     
-    def parse_feed(self):
-        """Parse the podcast RSS feed and store episodes in the database."""
+    def __init__(self):
+        """Initialize the podcast parser."""
+        pass
+    
+    def parse_feed(self, feed_url):
+        """Parse a podcast feed and return episodes."""
         try:
-            feed = feedparser.parse(self.feed_url)
+            # Parse feed
+            feed = feedparser.parse(feed_url)
             
-            if not feed.entries:
-                return {"success": False, "message": "No episodes found in feed", "count": 0}
+            if not feed or not feed.entries:
+                raise Exception("Failed to parse feed or no entries found")
             
-            count = 0
-            for entry in feed.entries:
-                # Extract episode details
-                title = entry.title
-                description = entry.description if hasattr(entry, 'description') else ""
-                
-                # Parse publication date
-                if hasattr(entry, 'published'):
-                    try:
-                        pub_date = datetime(*entry.published_parsed[:6]).isoformat()
-                    except:
-                        pub_date = entry.published
-                else:
-                    pub_date = datetime.now().isoformat()
-                
-                # Get audio URL
-                audio_url = None
-                if hasattr(entry, 'enclosures') and entry.enclosures:
-                    for enclosure in entry.enclosures:
-                        if enclosure.type and enclosure.type.startswith('audio/'):
-                            audio_url = enclosure.href
-                            break
-                
-                # Get duration if available
-                duration = 0
-                if hasattr(entry, 'itunes_duration'):
-                    try:
-                        # Handle different duration formats (HH:MM:SS, MM:SS, or seconds)
-                        duration_parts = entry.itunes_duration.split(':')
-                        if len(duration_parts) == 3:  # HH:MM:SS
-                            duration = int(duration_parts[0]) * 3600 + int(duration_parts[1]) * 60 + int(duration_parts[2])
-                        elif len(duration_parts) == 2:  # MM:SS
-                            duration = int(duration_parts[0]) * 60 + int(duration_parts[1])
-                        else:  # Seconds
-                            duration = int(entry.itunes_duration)
-                    except:
-                        duration = 0
-                
-                # Get image URL if available
-                image_url = None
-                if hasattr(entry, 'image') and hasattr(entry.image, 'href'):
-                    image_url = entry.image.href
-                elif hasattr(feed, 'feed') and hasattr(feed.feed, 'image') and hasattr(feed.feed.image, 'href'):
-                    image_url = feed.feed.image.href
-                
-                # Get unique identifier
-                guid = entry.id if hasattr(entry, 'id') else audio_url
-                
-                # Add to database if we have the required fields
-                if title and audio_url:
-                    episode_id = self.db.add_episode(
-                        title=title,
-                        description=description,
-                        publication_date=pub_date,
-                        audio_url=audio_url,
-                        duration=duration,
-                        image_url=image_url,
-                        guid=guid
-                    )
-                    if episode_id:
-                        count += 1
+            episodes = []
             
-            return {"success": True, "message": f"Successfully parsed {count} episodes", "count": count}
+            for i, entry in enumerate(feed.entries):
+                # Extract episode data
+                episode = self._parse_entry(entry, i)
+                
+                if episode:
+                    episodes.append(episode)
+            
+            return episodes
         
         except Exception as e:
-            return {"success": False, "message": f"Error parsing feed: {str(e)}", "count": 0}
+            print(f"Error parsing feed: {e}")
+            return []
     
-    def get_episode_details(self, episode_id):
-        """Get detailed information about a specific episode."""
-        return self.db.get_episode(episode_id)
+    def _parse_entry(self, entry, index):
+        """Parse a feed entry and return episode data."""
+        try:
+            # Extract ID from guid or generate one
+            episode_id = self._extract_id(entry)
+            
+            if not episode_id:
+                episode_id = f"episode_{index}"
+            
+            # Extract title
+            title = entry.title if hasattr(entry, 'title') else f"Episode {index}"
+            
+            # Extract date
+            date = self._extract_date(entry)
+            
+            # Extract audio URL
+            audio_url = self._extract_audio_url(entry)
+            
+            # Extract image URL
+            image_url = self._extract_image_url(entry)
+            
+            # Extract duration
+            duration = self._extract_duration(entry)
+            
+            # Extract description
+            description = self._extract_description(entry)
+            
+            return {
+                'id': episode_id,
+                'title': title,
+                'date': date,
+                'audioUrl': audio_url,
+                'image': image_url,
+                'duration': duration,
+                'description': description
+            }
+        
+        except Exception as e:
+            print(f"Error parsing entry: {e}")
+            return None
     
-    @staticmethod
-    def estimate_ad_end_time(audio_url):
-        """
-        Estimate where the advertisement ends in the podcast.
-        This is a placeholder function that could be improved with actual audio analysis.
-        For now, we'll assume a fixed duration of 30 seconds for ads at the beginning.
-        """
-        return 30  # Default 30 seconds
-    
-    @staticmethod
-    def extract_episode_number(title):
-        """Extract episode number from title if available."""
-        match = re.search(r'#(\d+)', title)
-        if match:
-            return int(match.group(1))
+    def _extract_id(self, entry):
+        """Extract episode ID from entry."""
+        if hasattr(entry, 'id'):
+            # Try to extract ID from guid
+            guid = entry.id
+            
+            # Extract ID from URL if possible
+            match = re.search(r'([^\/]+)$', guid)
+            if match:
+                return match.group(1)
+            
+            return guid
+        
         return None
+    
+    def _extract_date(self, entry):
+        """Extract episode date from entry."""
+        if hasattr(entry, 'published_parsed'):
+            # Convert time tuple to datetime
+            dt = datetime(*entry.published_parsed[:6])
+            return dt.isoformat()
+        
+        if hasattr(entry, 'published'):
+            return entry.published
+        
+        return datetime.now().isoformat()
+    
+    def _extract_audio_url(self, entry):
+        """Extract audio URL from entry."""
+        # Check for enclosures
+        if hasattr(entry, 'enclosures') and entry.enclosures:
+            for enclosure in entry.enclosures:
+                if 'url' in enclosure and enclosure.get('type', '').startswith('audio/'):
+                    return enclosure['url']
+            
+            # If no audio enclosure found, return first enclosure URL
+            if 'url' in entry.enclosures[0]:
+                return entry.enclosures[0]['url']
+        
+        # Check for media content
+        if hasattr(entry, 'media_content') and entry.media_content:
+            for media in entry.media_content:
+                if 'url' in media:
+                    return media['url']
+        
+        # Check for links
+        if hasattr(entry, 'links'):
+            for link in entry.links:
+                if link.get('type', '').startswith('audio/') and 'href' in link:
+                    return link['href']
+        
+        # Check for content
+        if hasattr(entry, 'content') and entry.content:
+            for content in entry.content:
+                if 'value' in content:
+                    # Try to extract audio URL from HTML
+                    match = re.search(r'src=[\'"]([^\'"]+\.mp3)[\'"]', content['value'])
+                    if match:
+                        return match.group(1)
+        
+        # Check for summary
+        if hasattr(entry, 'summary'):
+            # Try to extract audio URL from HTML
+            match = re.search(r'src=[\'"]([^\'"]+\.mp3)[\'"]', entry.summary)
+            if match:
+                return match.group(1)
+        
+        return None
+    
+    def _extract_image_url(self, entry):
+        """Extract image URL from entry."""
+        # Check for image in media content
+        if hasattr(entry, 'media_content') and entry.media_content:
+            for media in entry.media_content:
+                if 'url' in media and media.get('type', '').startswith('image/'):
+                    return media['url']
+        
+        # Check for image in media thumbnail
+        if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
+            for thumbnail in entry.media_thumbnail:
+                if 'url' in thumbnail:
+                    return thumbnail['url']
+        
+        # Check for image in links
+        if hasattr(entry, 'links'):
+            for link in entry.links:
+                if link.get('type', '').startswith('image/') and 'href' in link:
+                    return link['href']
+        
+        # Check for image in content
+        if hasattr(entry, 'content') and entry.content:
+            for content in entry.content:
+                if 'value' in content:
+                    # Try to extract image URL from HTML
+                    match = re.search(r'src=[\'"]([^\'"]+\.(jpg|jpeg|png|gif))[\'"]', content['value'])
+                    if match:
+                        return match.group(1)
+        
+        # Check for image in summary
+        if hasattr(entry, 'summary'):
+            # Try to extract image URL from HTML
+            match = re.search(r'src=[\'"]([^\'"]+\.(jpg|jpeg|png|gif))[\'"]', entry.summary)
+            if match:
+                return match.group(1)
+        
+        # Check for image in feed
+        if hasattr(entry, 'feed') and hasattr(entry.feed, 'image') and hasattr(entry.feed.image, 'href'):
+            return entry.feed.image.href
+        
+        return None
+    
+    def _extract_duration(self, entry):
+        """Extract episode duration from entry."""
+        # Check for itunes duration
+        if hasattr(entry, 'itunes_duration'):
+            return entry.itunes_duration
+        
+        # Check for media content duration
+        if hasattr(entry, 'media_content') and entry.media_content:
+            for media in entry.media_content:
+                if 'duration' in media:
+                    duration_seconds = int(media['duration'])
+                    return self._format_duration(duration_seconds)
+        
+        return None
+    
+    def _extract_description(self, entry):
+        """Extract episode description from entry."""
+        # Check for summary
+        if hasattr(entry, 'summary'):
+            return entry.summary
+        
+        # Check for description
+        if hasattr(entry, 'description'):
+            return entry.description
+        
+        # Check for content
+        if hasattr(entry, 'content') and entry.content:
+            for content in entry.content:
+                if 'value' in content:
+                    return content['value']
+        
+        return None
+    
+    def _format_duration(self, seconds):
+        """Format duration in seconds to HH:MM:SS."""
+        if not seconds:
+            return None
+        
+        try:
+            seconds = int(seconds)
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            
+            if hours > 0:
+                return f"{hours}:{minutes:02d}:{seconds:02d}"
+            else:
+                return f"{minutes}:{seconds:02d}"
+        except:
+            return None

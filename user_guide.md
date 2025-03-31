@@ -1,117 +1,74 @@
-# Sublime Weekendmix Jukebox - Gebruikershandleiding
+# Gebruikershandleiding Sublime Weekendmix Jukebox
 
-## Inhoudsopgave
-1. [Introductie](#introductie)
-2. [Aan de slag](#aan-de-slag)
-3. [Navigatie](#navigatie)
-4. [Afspelen van afleveringen](#afspelen-van-afleveringen)
-5. [Favorieten beheren](#favorieten-beheren)
-6. [Nummers markeren en Spotify integratie](#nummers-markeren-en-spotify-integratie)
-7. [Instellingen en voorkeuren](#instellingen-en-voorkeuren)
-8. [Veelgestelde vragen](#veelgestelde-vragen)
-
-## Introductie
-
-Welkom bij de Sublime Weekendmix Jukebox! Deze applicatie stelt u in staat om alle afleveringen van "The Sublime Weekendmix" podcast te beluisteren in een gebruiksvriendelijke interface geïnspireerd op Spotify. De applicatie biedt geavanceerde functies zoals doorlopend afspelen, willekeurige volgorde, favorieten markeren, reclames overslaan en Spotify integratie.
-
-## Aan de slag
-
-### Toegang tot de applicatie
-Open uw webbrowser en ga naar de URL van de applicatie. Als u de applicatie lokaal heeft geïnstalleerd, is dit meestal:
-```
-http://localhost:5000
-```
-
-### Eerste gebruik
-Bij het eerste gebruik zal de applicatie automatisch alle beschikbare afleveringen van The Sublime Weekendmix ophalen. Dit kan enkele momenten duren. Zodra dit voltooid is, ziet u de startpagina met recente afleveringen en navigatieopties.
+Deze handleiding beschrijft hoe je de Sublime Weekendmix Jukebox applicatie kunt gebruiken.
 
 ## Navigatie
 
-De interface bestaat uit de volgende hoofdonderdelen:
+De applicatie heeft de volgende secties:
 
-### Zijbalk
-Links vindt u de zijbalk met de volgende navigatieopties:
-- **Home**: Startpagina met recente afleveringen en favorieten
-- **Alle Afleveringen**: Overzicht van alle beschikbare afleveringen
-- **Favorieten**: Uw favoriete afleveringen
-- **Favoriete Nummers**: Nummers die u heeft gemarkeerd binnen afleveringen
+- **Home**: Overzicht van de applicatie
+- **Alle Afleveringen**: Lijst van alle beschikbare afleveringen
+- **Favorieten**: Lijst van je favoriete afleveringen
+- **Downloads**: Lijst van gedownloade afleveringen
 
-Onderaan de zijbalk vindt u de "Vernieuwen" knop om de lijst met afleveringen bij te werken.
+Je kunt tussen deze secties navigeren via het menu aan de linkerkant.
 
-### Hoofdgedeelte
-Het hoofdgedeelte toont de inhoud van de geselecteerde navigatieoptie.
+## Afspelen van Afleveringen
 
-### Speler
-Onderaan de pagina vindt u de speler met bedieningselementen voor het afspelen van afleveringen.
+1. Ga naar "Alle Afleveringen"
+2. Klik op een aflevering om deze af te spelen
+3. Gebruik de afspeelknoppen onderaan om het afspelen te bedienen:
+   - Play/Pause: Start of pauzeer het afspelen
+   - Vorige: Ga naar de vorige aflevering
+   - Volgende: Ga naar de volgende aflevering
+   - Shuffle: Schakel willekeurige volgorde in/uit
+   - Volume: Pas het volume aan
 
-## Afspelen van afleveringen
+## Waveform Visualisatie
 
-### Een aflevering starten
-Klik op een aflevering in de lijst om deze af te spelen. De aflevering wordt automatisch gestart en reclames aan het begin worden overgeslagen.
+De waveform visualisatie toont de geluidsgolven van de huidige aflevering:
 
-### Bedieningselementen
-In de speler onderaan de pagina vindt u de volgende bedieningselementen:
-- **Afspelen/Pauzeren**: Start of pauzeer de huidige aflevering
-- **Vorige**: Ga naar de vorige aflevering
-- **Volgende**: Ga naar de volgende aflevering
-- **Voortgangsbalk**: Toont de afspeelpositie en kan worden gebruikt om naar een specifiek punt te navigeren
-- **Volume**: Pas het volume aan met de volumeschuif
+1. Je kunt op de waveform klikken om naar een specifiek punt in de aflevering te gaan
+2. De voortgang wordt getoond met een verticale lijn
+3. Favoriete nummers worden gemarkeerd met oranje markers
 
-### Doorlopend afspelen
-Standaard speelt de applicatie automatisch de volgende aflevering af na het einde van de huidige aflevering. U kunt deze functie in- of uitschakelen met de "Doorlopend" knop in de hoofdbalk.
+## Favorieten
 
-### Willekeurige volgorde
-Klik op de "Willekeurig" knop in de hoofdbalk om afleveringen in willekeurige volgorde af te spelen. De applicatie onthoudt welke afleveringen al zijn afgespeeld om herhaling te voorkomen.
+### Favoriete Afleveringen
 
-## Favorieten beheren
+1. Klik op het hartje naast een aflevering om deze als favoriet te markeren
+2. Ga naar "Favorieten" om al je favoriete afleveringen te zien
+3. Klik nogmaals op het hartje om een aflevering uit je favorieten te verwijderen
 
-### Afleveringen als favoriet markeren
-Klik op het hartpictogram bij een aflevering om deze als favoriet te markeren. Gemarkeerde favorieten worden weergegeven in de "Favorieten" sectie.
+### Favoriete Nummers
 
-### Favorieten verwijderen
-Klik nogmaals op het hartpictogram bij een favoriete aflevering om deze te verwijderen uit uw favorieten.
+1. Tijdens het afspelen van een aflevering, klik op de waveform op het moment dat je een nummer wilt markeren
+2. Klik op de "Markeer nummer" knop
+3. Voer de titel en artiest van het nummer in
+4. Klik op "Zoek op Spotify" om het nummer op Spotify te zoeken
+5. Selecteer het juiste nummer uit de zoekresultaten
+6. Klik op "Opslaan" om het nummer als favoriet te markeren
 
-## Nummers markeren en Spotify integratie
+## Spotify Integratie
 
-### Een nummer markeren
-1. Tijdens het afspelen van een aflevering, klik op het muzieknotenpictogram in de speler wanneer u een nummer hoort dat u wilt markeren
-2. Voer de titel en artiest van het nummer in
-3. Klik op "Opslaan"
+1. Wanneer je een nummer markeert, kun je op Spotify zoeken naar de titel en artiest
+2. De zoekresultaten tonen de albumhoes, titel, artiest en een preview knop
+3. Klik op een zoekresultaat om het te selecteren
+4. Klik op de preview knop om een fragment van het nummer te beluisteren
+5. Klik op "Opslaan" om het geselecteerde nummer te koppelen aan de markering
 
-### Spotify zoekresultaten
-Na het markeren van een nummer zoekt de applicatie automatisch naar overeenkomende nummers op Spotify (indien geconfigureerd). U kunt:
-- Previews van nummers beluisteren
-- Naar het nummer op Spotify gaan
-- Een Spotify link koppelen aan het gemarkeerde nummer
+## Downloads
 
-### Favoriete nummers bekijken
-Ga naar de "Favoriete Nummers" sectie in de zijbalk om al uw gemarkeerde nummers te bekijken. Hier kunt u:
-- Direct naar het tijdstip in de aflevering gaan waar het nummer wordt gespeeld
-- De Spotify link openen (indien beschikbaar)
-- Nummers verwijderen uit uw favorieten
+1. Ga naar "Alle Afleveringen"
+2. Klik op de download knop naast een aflevering om deze te downloaden
+3. Ga naar "Downloads" om de voortgang van je downloads te zien
+4. Je kunt downloads pauzeren, hervatten, annuleren of verwijderen
+5. Klik op een gedownloade aflevering om deze af te spelen
 
-## Instellingen en voorkeuren
+## Tips & Tricks
 
-De applicatie onthoudt uw voorkeuren tussen sessies, waaronder:
-- Favoriete afleveringen
-- Gemarkeerde nummers
-- Volume-instellingen
-- Doorlopend afspelen voorkeur
-- Willekeurige volgorde voorkeur
-
-## Veelgestelde vragen
-
-### Hoe kan ik de nieuwste afleveringen ophalen?
-Klik op de "Vernieuwen" knop onderaan de zijbalk om de lijst met afleveringen bij te werken.
-
-### Waarom werkt de Spotify integratie niet?
-De Spotify integratie vereist configuratie van API sleutels. Raadpleeg de implementatiehandleiding voor instructies over het instellen van Spotify API sleutels.
-
-### Worden reclames automatisch overgeslagen?
-Ja, de applicatie slaat automatisch de eerste 30 seconden van elke aflevering over, waar meestal reclames te horen zijn.
-
-### Kan ik de applicatie offline gebruiken?
-De applicatie vereist een internetverbinding om afleveringen te streamen en de Spotify API te gebruiken. Er is momenteel geen offline modus beschikbaar.
-
-### Hoe kan ik de applicatie updaten?
-Raadpleeg de implementatiehandleiding voor instructies over het updaten van de applicatie naar de nieuwste versie.
+- **Reclames overslaan**: De applicatie slaat automatisch reclames aan het begin van afleveringen over
+- **Doorlopend afspelen**: Na het einde van een aflevering wordt automatisch de volgende aflevering gestart
+- **Offline gebruik**: Gedownloade afleveringen zijn beschikbaar zonder internetverbinding
+- **Zoeken**: Gebruik de zoekbalk bovenaan om te zoeken naar specifieke afleveringen
+- **Mobiel gebruik**: De applicatie is volledig responsive en werkt ook op mobiele apparaten

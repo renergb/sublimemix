@@ -1,336 +1,240 @@
-import os
-import sqlite3
 import json
-import threading
+import os
+import time
+import uuid
 from datetime import datetime
 
 class Database:
-    """Database class for managing podcast episodes, favorites, and playback history."""
+    """Database class for storing and retrieving data."""
     
-    def __init__(self, db_path=None):
-        """Initialize the database connection."""
-        if db_path is None:
-            # Use the directory of this file
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            db_path = os.path.join(os.path.dirname(current_dir), 'sublime_jukebox.db')
+    def __init__(self):
+        """Initialize the database."""
+        self.data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+        os.makedirs(self.data_dir, exist_ok=True)
         
-        self.db_path = db_path
-        self.local = threading.local()
+        self.episodes_file = os.path.join(self.data_dir, "episodes.json")
+        self.favorites_file = os.path.join(self.data_dir, "favorites.json")
+        self.favorite_songs_file = os.path.join(self.data_dir, "favorite_songs.json")
+        self.downloads_file = os.path.join(self.data_dir, "downloads.json")
         
-        # Initialize database if it doesn't exist
-        self._init_db()
+        # Initialize data files if they don't exist
+        self._init_data_files()
     
-    def get_connection(self):
-        """Get a thread-local database connection."""
-        if not hasattr(self.local, 'connection'):
-            self.local.connection = sqlite3.connect(self.db_path)
-            self.local.connection.row_factory = sqlite3.Row
-        return self.local.connection
+    def _init_data_files(self):
+        """Initialize data files if they don't exist."""
+        if not os.path.exists(self.episodes_file):
+            with open(self.episodes_file, 'w') as f:
+                json.dump([], f)
+        
+        if not os.path.exists(self.favorites_file):
+            with open(self.favorites_file, 'w') as f:
+                json.dump([], f)
+        
+        if not os.path.exists(self.favorite_songs_file):
+            with open(self.favorite_songs_file, 'w') as f:
+                json.dump([], f)
+        
+        if not os.path.exists(self.downloads_file):
+            with open(self.downloads_file, 'w') as f:
+                json.dump({}, f)
     
-    def _init_db(self):
-        """Initialize the database with required tables."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Create episodes table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS episodes (
-            id INTEGER PRIMARY KEY,
-            title TEXT NOT NULL,
-            description TEXT,
-            publication_date TEXT,
-            audio_url TEXT NOT NULL,
-            image_url TEXT,
-            duration INTEGER DEFAULT 0
-        )
-        ''')
-        
-        # Create favorites table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS favorites (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            episode_id INTEGER NOT NULL,
-            added_date TEXT NOT NULL,
-            FOREIGN KEY (episode_id) REFERENCES episodes (id),
-            UNIQUE (episode_id)
-        )
-        ''')
-        
-        # Create song_favorites table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS song_favorites (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            episode_id INTEGER NOT NULL,
-            timestamp INTEGER NOT NULL,
-            song_title TEXT NOT NULL,
-            artist TEXT NOT NULL,
-            spotify_url TEXT,
-            added_date TEXT NOT NULL,
-            FOREIGN KEY (episode_id) REFERENCES episodes (id)
-        )
-        ''')
-        
-        # Create playback_history table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS playback_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            episode_id INTEGER NOT NULL,
-            timestamp INTEGER DEFAULT 0,
-            played_date TEXT NOT NULL,
-            FOREIGN KEY (episode_id) REFERENCES episodes (id)
-        )
-        ''')
-        
-        conn.commit()
+    def get_episodes(self):
+        """Get all episodes."""
+        try:
+            with open(self.episodes_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading episodes: {e}")
+            return []
     
-    def add_episode(self, episode_data):
-        """Add a new episode to the database."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Check if episode already exists
-        cursor.execute('SELECT id FROM episodes WHERE id = ?', (episode_data['id'],))
-        if cursor.fetchone():
-            # Update existing episode
-            cursor.execute('''
-            UPDATE episodes
-            SET title = ?, description = ?, publication_date = ?, audio_url = ?, image_url = ?, duration = ?
-            WHERE id = ?
-            ''', (
-                episode_data['title'],
-                episode_data.get('description', ''),
-                episode_data.get('publication_date', ''),
-                episode_data['audio_url'],
-                episode_data.get('image_url', ''),
-                episode_data.get('duration', 0),
-                episode_data['id']
-            ))
-        else:
-            # Insert new episode
-            cursor.execute('''
-            INSERT INTO episodes (id, title, description, publication_date, audio_url, image_url, duration)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                episode_data['id'],
-                episode_data['title'],
-                episode_data.get('description', ''),
-                episode_data.get('publication_date', ''),
-                episode_data['audio_url'],
-                episode_data.get('image_url', ''),
-                episode_data.get('duration', 0)
-            ))
-        
-        conn.commit()
-        return episode_data['id']
+    def save_episodes(self, episodes):
+        """Save episodes to file."""
+        try:
+            with open(self.episodes_file, 'w') as f:
+                json.dump(episodes, f)
+            return True
+        except Exception as e:
+            print(f"Error saving episodes: {e}")
+            return False
     
     def get_episode(self, episode_id):
         """Get a specific episode by ID."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM episodes WHERE id = ?', (episode_id,))
-        row = cursor.fetchone()
-        
-        if row:
-            return dict(row)
+        episodes = self.get_episodes()
+        for episode in episodes:
+            if episode.get('id') == episode_id:
+                return episode
         return None
     
-    def get_all_episodes(self):
-        """Get all episodes."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM episodes ORDER BY publication_date DESC')
-        rows = cursor.fetchall()
-        
-        return [dict(row) for row in rows]
-    
-    def add_episode_favorite(self, episode_id):
-        """Add an episode to favorites."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Check if episode exists
-        cursor.execute('SELECT id FROM episodes WHERE id = ?', (episode_id,))
-        if not cursor.fetchone():
-            return False
-        
-        # Check if already in favorites
-        cursor.execute('SELECT id FROM favorites WHERE episode_id = ?', (episode_id,))
-        if cursor.fetchone():
-            return False
-        
-        # Add to favorites
-        cursor.execute('''
-        INSERT INTO favorites (episode_id, added_date)
-        VALUES (?, ?)
-        ''', (episode_id, datetime.now().isoformat()))
-        
-        conn.commit()
-        return True
-    
-    def remove_episode_favorite(self, episode_id):
-        """Remove an episode from favorites."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM favorites WHERE episode_id = ?', (episode_id,))
-        
-        if cursor.rowcount > 0:
-            conn.commit()
-            return True
-        return False
-    
-    def is_episode_favorite(self, episode_id):
-        """Check if an episode is in favorites."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT id FROM favorites WHERE episode_id = ?', (episode_id,))
-        return cursor.fetchone() is not None
-    
-    def get_favorite_episodes(self):
+    def get_favorites(self):
         """Get all favorite episodes."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        SELECT e.* FROM episodes e
-        JOIN favorites f ON e.id = f.episode_id
-        ORDER BY f.added_date DESC
-        ''')
-        rows = cursor.fetchall()
-        
-        return [dict(row) for row in rows]
+        try:
+            with open(self.favorites_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading favorites: {e}")
+            return []
     
-    def add_song_favorite(self, episode_id, timestamp, song_title, artist, spotify_url=None):
-        """Add a favorite song."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def add_favorite(self, episode_id):
+        """Add an episode to favorites."""
+        favorites = self.get_favorites()
         
-        # Check if episode exists
-        cursor.execute('SELECT id FROM episodes WHERE id = ?', (episode_id,))
-        if not cursor.fetchone():
+        if episode_id not in favorites:
+            favorites.append(episode_id)
+            
+            try:
+                with open(self.favorites_file, 'w') as f:
+                    json.dump(favorites, f)
+            except Exception as e:
+                print(f"Error saving favorites: {e}")
+                return favorites
+        
+        return favorites
+    
+    def remove_favorite(self, episode_id):
+        """Remove an episode from favorites."""
+        favorites = self.get_favorites()
+        
+        if episode_id in favorites:
+            favorites.remove(episode_id)
+            
+            try:
+                with open(self.favorites_file, 'w') as f:
+                    json.dump(favorites, f)
+            except Exception as e:
+                print(f"Error saving favorites: {e}")
+                return favorites
+        
+        return favorites
+    
+    def get_favorite_songs(self):
+        """Get all favorite songs."""
+        try:
+            with open(self.favorite_songs_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading favorite songs: {e}")
+            return []
+    
+    def add_favorite_song(self, song):
+        """Add a song to favorite songs."""
+        favorite_songs = self.get_favorite_songs()
+        
+        # Generate ID if not provided
+        if not song.get('id'):
+            song['id'] = str(uuid.uuid4())
+        
+        # Add timestamp if not provided
+        if not song.get('createdAt'):
+            song['createdAt'] = datetime.now().isoformat()
+        
+        favorite_songs.append(song)
+        
+        try:
+            with open(self.favorite_songs_file, 'w') as f:
+                json.dump(favorite_songs, f)
+            return song['id']
+        except Exception as e:
+            print(f"Error saving favorite songs: {e}")
             return None
-        
-        # Add to song favorites
-        cursor.execute('''
-        INSERT INTO song_favorites (episode_id, timestamp, song_title, artist, spotify_url, added_date)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            episode_id,
-            timestamp,
-            song_title,
-            artist,
-            spotify_url,
-            datetime.now().isoformat()
-        ))
-        
-        conn.commit()
-        return cursor.lastrowid
     
-    def update_song_favorite(self, song_id, **kwargs):
-        """Update a favorite song."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Check if song exists
-        cursor.execute('SELECT id FROM song_favorites WHERE id = ?', (song_id,))
-        if not cursor.fetchone():
-            return False
-        
-        # Build update query
-        fields = []
-        values = []
-        
-        for key, value in kwargs.items():
-            if key in ['song_title', 'artist', 'spotify_url', 'timestamp']:
-                fields.append(f"{key} = ?")
-                values.append(value)
-        
-        if not fields:
-            return False
-        
-        values.append(song_id)
-        
-        query = f"UPDATE song_favorites SET {', '.join(fields)} WHERE id = ?"
-        cursor.execute(query, values)
-        
-        conn.commit()
-        return True
+    def get_favorite_song(self, song_id):
+        """Get a specific favorite song by ID."""
+        favorite_songs = self.get_favorite_songs()
+        for song in favorite_songs:
+            if song.get('id') == song_id:
+                return song
+        return None
     
-    def remove_song_favorite(self, song_id):
-        """Remove a song from favorites."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def remove_favorite_song(self, song_id):
+        """Remove a song from favorite songs."""
+        favorite_songs = self.get_favorite_songs()
         
-        cursor.execute('DELETE FROM song_favorites WHERE id = ?', (song_id,))
+        for i, song in enumerate(favorite_songs):
+            if song.get('id') == song_id:
+                favorite_songs.pop(i)
+                
+                try:
+                    with open(self.favorite_songs_file, 'w') as f:
+                        json.dump(favorite_songs, f)
+                    return True
+                except Exception as e:
+                    print(f"Error saving favorite songs: {e}")
+                    return False
         
-        if cursor.rowcount > 0:
-            conn.commit()
-            return True
         return False
     
-    def get_favorite_songs(self, episode_id=None):
-        """Get all favorite songs, optionally filtered by episode."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        if episode_id:
-            cursor.execute('''
-            SELECT sf.*, e.title as episode_title FROM song_favorites sf
-            JOIN episodes e ON sf.episode_id = e.id
-            WHERE sf.episode_id = ?
-            ORDER BY sf.added_date DESC
-            ''', (episode_id,))
-        else:
-            cursor.execute('''
-            SELECT sf.*, e.title as episode_title FROM song_favorites sf
-            JOIN episodes e ON sf.episode_id = e.id
-            ORDER BY sf.added_date DESC
-            ''')
-        
-        rows = cursor.fetchall()
-        
-        return [dict(row) for row in rows]
+    def get_downloads(self):
+        """Get all downloads."""
+        try:
+            with open(self.downloads_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading downloads: {e}")
+            return {}
     
-    def add_to_playback_history(self, episode_id, timestamp=0):
-        """Add an episode to playback history."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def add_download(self, task_id, episode_id):
+        """Add a download task."""
+        downloads = self.get_downloads()
         
-        # Check if episode exists
-        cursor.execute('SELECT id FROM episodes WHERE id = ?', (episode_id,))
-        if not cursor.fetchone():
-            return None
+        downloads[task_id] = {
+            'episodeId': episode_id,
+            'status': 'pending',
+            'progress': 0,
+            'createdAt': datetime.now().isoformat()
+        }
         
-        # Add to history
-        cursor.execute('''
-        INSERT INTO playback_history (episode_id, timestamp, played_date)
-        VALUES (?, ?, ?)
-        ''', (episode_id, timestamp, datetime.now().isoformat()))
-        
-        conn.commit()
-        return cursor.lastrowid
+        try:
+            with open(self.downloads_file, 'w') as f:
+                json.dump(downloads, f)
+            return True
+        except Exception as e:
+            print(f"Error saving downloads: {e}")
+            return False
     
-    def get_playback_history(self, limit=10):
-        """Get playback history."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        SELECT ph.*, e.title as episode_title FROM playback_history ph
-        JOIN episodes e ON ph.episode_id = e.id
-        ORDER BY ph.played_date DESC
-        LIMIT ?
-        ''', (limit,))
-        
-        rows = cursor.fetchall()
-        
-        return [dict(row) for row in rows]
+    def get_download(self, task_id):
+        """Get a specific download by task ID."""
+        downloads = self.get_downloads()
+        return downloads.get(task_id)
     
-    def close(self):
-        """Close the database connection."""
-        if hasattr(self.local, 'connection'):
-            self.local.connection.close()
-            del self.local.connection
+    def update_download_status(self, task_id, status, progress=None, error=None, local_path=None):
+        """Update the status of a download task."""
+        downloads = self.get_downloads()
+        
+        if task_id not in downloads:
+            return False
+        
+        downloads[task_id]['status'] = status
+        
+        if progress is not None:
+            downloads[task_id]['progress'] = progress
+        
+        if error is not None:
+            downloads[task_id]['error'] = error
+        
+        if local_path is not None:
+            downloads[task_id]['local_path'] = local_path
+        
+        try:
+            with open(self.downloads_file, 'w') as f:
+                json.dump(downloads, f)
+            return True
+        except Exception as e:
+            print(f"Error saving downloads: {e}")
+            return False
+    
+    def remove_download(self, task_id):
+        """Remove a download task."""
+        downloads = self.get_downloads()
+        
+        if task_id in downloads:
+            del downloads[task_id]
+            
+            try:
+                with open(self.downloads_file, 'w') as f:
+                    json.dump(downloads, f)
+                return True
+            except Exception as e:
+                print(f"Error saving downloads: {e}")
+                return False
+        
+        return False

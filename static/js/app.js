@@ -1,759 +1,1165 @@
+// Main Application JavaScript for Sublime Weekendmix Jukebox
+
 // Global variables
-let player = null;
-let currentEpisode = null;
 let episodes = [];
 let favorites = [];
 let favoriteSongs = [];
+let downloads = {};
+let currentEpisode = null;
 let isPlaying = false;
-let isContinuous = true;
 let isRandom = false;
-let playedEpisodes = [];
-let currentTimestamp = 0;
-let markSongModal = null;
-let spotifyResultsModal = null;
+let isContinuous = true;
+let wavesurfer = null;
+let songMarkers = [];
 
-// DOM elements
-const playerTitle = document.getElementById('player-title');
-const playerDate = document.getElementById('player-date');
-const playerCover = document.getElementById('player-cover');
-const playButton = document.getElementById('btn-play');
-const prevButton = document.getElementById('btn-previous');
-const nextButton = document.getElementById('btn-next');
-const progressBar = document.getElementById('progress-bar');
-const currentTimeDisplay = document.getElementById('current-time');
-const totalTimeDisplay = document.getElementById('total-time');
-const volumeSlider = document.getElementById('volume-slider');
-const favoriteButton = document.getElementById('btn-favorite');
-const markSongButton = document.getElementById('btn-mark-song');
-const randomButton = document.getElementById('btn-random');
-const continuousButton = document.getElementById('btn-continuous');
-const refreshButton = document.getElementById('btn-refresh');
-
-// Navigation elements
-const navHome = document.getElementById('nav-home');
-const navEpisodes = document.getElementById('nav-episodes');
-const navFavorites = document.getElementById('nav-favorites');
-const navSongs = document.getElementById('nav-songs');
-
-// Content views
-const viewHome = document.getElementById('view-home');
-const viewEpisodes = document.getElementById('view-episodes');
-const viewFavorites = document.getElementById('view-favorites');
-const viewSongs = document.getElementById('view-songs');
-const contentTitle = document.getElementById('content-title');
-
-// Content containers
-const episodesContainer = document.getElementById('episodes-container');
-const favoritesContainer = document.getElementById('favorites-container');
-const songsContainer = document.getElementById('songs-container');
-const recentEpisodesList = document.getElementById('recent-episodes');
-const favoriteEpisodesList = document.getElementById('favorite-episodes');
-
-// Modal elements
-const songTitleInput = document.getElementById('song-title');
-const songArtistInput = document.getElementById('song-artist');
-const songTimestampDisplay = document.getElementById('song-timestamp');
-const saveSongButton = document.getElementById('btn-save-song');
-const spotifyResultsContainer = document.getElementById('spotify-results-container');
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Bootstrap modals
-    markSongModal = new bootstrap.Modal(document.getElementById('markSongModal'));
-    spotifyResultsModal = new bootstrap.Modal(document.getElementById('spotifyResultsModal'));
+// DOM Elements
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize navigation
+    initNavigation();
     
-    // Set up event listeners
-    setupEventListeners();
+    // Initialize player controls
+    initPlayerControls();
     
-    // Load initial data
+    // Initialize waveform visualization
+    initWaveform();
+    
+    // Initialize song marker modal
+    initSongMarkerModal();
+    
+    // Load episodes
     loadEpisodes();
-    loadFavorites();
-    loadFavoriteSongs();
-    loadRecentEpisodes();
     
-    // Set up navigation
-    setupNavigation();
+    // Load favorites
+    loadFavorites();
+    
+    // Load favorite songs
+    loadFavoriteSongs();
+    
+    // Load downloads
+    loadDownloads();
 });
 
-// Set up event listeners
-function setupEventListeners() {
-    // Player controls
-    playButton.addEventListener('click', togglePlay);
-    prevButton.addEventListener('click', playPrevious);
-    nextButton.addEventListener('click', playNext);
-    volumeSlider.addEventListener('input', updateVolume);
-    favoriteButton.addEventListener('click', toggleFavorite);
-    markSongButton.addEventListener('click', openMarkSongModal);
-    randomButton.addEventListener('click', toggleRandom);
-    continuousButton.addEventListener('click', toggleContinuous);
-    refreshButton.addEventListener('click', refreshEpisodes);
+// Navigation Functions
+function initNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Update active link
+            navLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Get page id from href
+            const pageId = this.getAttribute('href').substring(1);
+            
+            // Update page title
+            document.getElementById('page-title').textContent = this.textContent.trim();
+            
+            // Show corresponding page
+            const pages = document.querySelectorAll('.content-page');
+            pages.forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId + '-page').classList.add('active');
+            
+            // Update URL hash
+            window.location.hash = pageId;
+        });
+    });
+    
+    // Handle initial hash
+    const hash = window.location.hash.substring(1) || 'home';
+    const activeLink = document.querySelector(`.nav-link[href="#${hash}"]`);
+    if (activeLink) {
+        activeLink.click();
+    } else {
+        document.querySelector('.nav-link').click();
+    }
+    
+    // Refresh button
+    document.getElementById('refresh-button').addEventListener('click', function() {
+        loadEpisodes(true);
+    });
+}
+
+// Player Control Functions
+function initPlayerControls() {
+    // Play/Pause button
+    document.getElementById('play-button').addEventListener('click', function() {
+        if (!currentEpisode) return;
+        
+        if (isPlaying) {
+            pauseEpisode();
+        } else {
+            playEpisode();
+        }
+    });
+    
+    // Previous button
+    document.getElementById('prev-button').addEventListener('click', function() {
+        playPreviousEpisode();
+    });
+    
+    // Next button
+    document.getElementById('next-button').addEventListener('click', function() {
+        playNextEpisode();
+    });
+    
+    // Favorite button
+    document.getElementById('favorite-button').addEventListener('click', function() {
+        if (!currentEpisode) return;
+        
+        toggleFavorite(currentEpisode.id);
+    });
+    
+    // Mark song button
+    document.getElementById('mark-song-button').addEventListener('click', function() {
+        if (!currentEpisode || !wavesurfer) return;
+        
+        openSongMarkerModal();
+    });
+    
+    // Volume slider
+    document.getElementById('volume-slider').addEventListener('input', function() {
+        if (!wavesurfer) return;
+        
+        const volume = this.value / 100;
+        wavesurfer.setVolume(volume);
+        
+        // Save to localStorage
+        localStorage.setItem('volume', volume);
+    });
     
     // Progress bar
-    document.querySelector('.progress').addEventListener('click', seekAudio);
+    document.getElementById('progress-bar').addEventListener('click', function(e) {
+        if (!wavesurfer) return;
+        
+        const percent = e.offsetX / this.offsetWidth;
+        wavesurfer.seekTo(percent);
+    });
     
-    // Mark song modal
-    saveSongButton.addEventListener('click', saveFavoriteSong);
-}
-
-// Set up navigation
-function setupNavigation() {
-    // Navigation click handlers
-    navHome.addEventListener('click', () => showView('home'));
-    navEpisodes.addEventListener('click', () => showView('episodes'));
-    navFavorites.addEventListener('click', () => showView('favorites'));
-    navSongs.addEventListener('click', () => showView('songs'));
-}
-
-// Show a specific view
-function showView(viewName) {
-    // Hide all views
-    viewHome.classList.remove('active');
-    viewEpisodes.classList.remove('active');
-    viewFavorites.classList.remove('active');
-    viewSongs.classList.remove('active');
+    // Random button
+    document.getElementById('random-button').addEventListener('click', function() {
+        isRandom = !isRandom;
+        this.classList.toggle('active', isRandom);
+        
+        // Save to localStorage
+        localStorage.setItem('isRandom', isRandom);
+    });
     
-    // Remove active class from all nav items
-    navHome.classList.remove('active');
-    navEpisodes.classList.remove('active');
-    navFavorites.classList.remove('active');
-    navSongs.classList.remove('active');
+    // Continuous button
+    document.getElementById('continuous-button').addEventListener('click', function() {
+        isContinuous = !isContinuous;
+        this.classList.toggle('active', isContinuous);
+        
+        // Save to localStorage
+        localStorage.setItem('isContinuous', isContinuous);
+    });
     
-    // Show the selected view
-    switch (viewName) {
-        case 'home':
-            viewHome.classList.add('active');
-            navHome.classList.add('active');
-            contentTitle.textContent = 'Home';
-            break;
-        case 'episodes':
-            viewEpisodes.classList.add('active');
-            navEpisodes.classList.add('active');
-            contentTitle.textContent = 'Alle Afleveringen';
-            break;
-        case 'favorites':
-            viewFavorites.classList.add('active');
-            navFavorites.classList.add('active');
-            contentTitle.textContent = 'Favorieten';
-            break;
-        case 'songs':
-            viewSongs.classList.add('active');
-            navSongs.classList.add('active');
-            contentTitle.textContent = 'Favoriete Nummers';
-            break;
+    // Load settings from localStorage
+    const savedVolume = localStorage.getItem('volume');
+    if (savedVolume !== null) {
+        document.getElementById('volume-slider').value = savedVolume * 100;
     }
+    
+    isRandom = localStorage.getItem('isRandom') === 'true';
+    document.getElementById('random-button').classList.toggle('active', isRandom);
+    
+    isContinuous = localStorage.getItem('isContinuous') !== 'false';
+    document.getElementById('continuous-button').classList.toggle('active', isContinuous);
 }
 
 // API Functions
-async function fetchAPI(endpoint, method = 'GET', data = null) {
+async function loadEpisodes(refresh = false) {
     try {
-        const options = {
-            method,
+        const episodesPage = document.getElementById('episodes-page');
+        episodesPage.querySelector('.episode-grid').innerHTML = '<p class="loading-message">Afleveringen laden...</p>';
+        
+        const response = await fetch(`/api/episodes${refresh ? '?refresh=true' : ''}`);
+        const data = await response.json();
+        
+        if (data.episodes && Array.isArray(data.episodes)) {
+            episodes = data.episodes;
+            
+            // Render episodes
+            renderEpisodes();
+        } else {
+            throw new Error('Invalid response format');
+        }
+    } catch (error) {
+        console.error('Error loading episodes:', error);
+        document.getElementById('episodes-list').innerHTML = `
+            <p class="empty-message">Fout bij het laden van afleveringen. Probeer het later opnieuw.</p>
+        `;
+    }
+}
+
+async function loadFavorites() {
+    try {
+        const response = await fetch('/api/favorites');
+        const data = await response.json();
+        
+        if (data.favorites && Array.isArray(data.favorites)) {
+            favorites = data.favorites;
+            
+            // Render favorites
+            renderFavorites();
+            
+            // Update favorite button if current episode is favorite
+            updateFavoriteButton();
+        } else {
+            throw new Error('Invalid response format');
+        }
+    } catch (error) {
+        console.error('Error loading favorites:', error);
+        document.getElementById('favorites-list').innerHTML = `
+            <p class="empty-message">Fout bij het laden van favorieten. Probeer het later opnieuw.</p>
+        `;
+    }
+}
+
+async function loadFavoriteSongs() {
+    try {
+        const response = await fetch('/api/favorite-songs');
+        const data = await response.json();
+        
+        if (data.favoriteSongs && Array.isArray(data.favoriteSongs)) {
+            favoriteSongs = data.favoriteSongs;
+            
+            // Render favorite songs
+            renderFavoriteSongs();
+        } else {
+            throw new Error('Invalid response format');
+        }
+    } catch (error) {
+        console.error('Error loading favorite songs:', error);
+        document.getElementById('favorite-songs-list').innerHTML = `
+            <p class="empty-message">Fout bij het laden van favoriete nummers. Probeer het later opnieuw.</p>
+        `;
+    }
+}
+
+async function loadDownloads() {
+    try {
+        const response = await fetch('/api/downloads');
+        const data = await response.json();
+        
+        if (data.downloads && typeof data.downloads === 'object') {
+            downloads = data.downloads;
+            
+            // Render downloads
+            renderDownloads();
+        } else {
+            throw new Error('Invalid response format');
+        }
+    } catch (error) {
+        console.error('Error loading downloads:', error);
+        document.getElementById('downloads-list').innerHTML = `
+            <p class="empty-message">Fout bij het laden van downloads. Probeer het later opnieuw.</p>
+        `;
+    }
+}
+
+async function toggleFavorite(episodeId) {
+    if (!episodeId) return;
+    
+    try {
+        const isFavorite = favorites.includes(episodeId);
+        const method = isFavorite ? 'DELETE' : 'POST';
+        
+        const response = await fetch('/api/favorites', {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ episodeId: episodeId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.favorites) {
+            favorites = data.favorites;
+            
+            // Update UI
+            renderFavorites();
+            updateFavoriteButton();
+        } else {
+            throw new Error('Failed to update favorite');
+        }
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        alert('Fout bij het bijwerken van favorieten. Probeer het later opnieuw.');
+    }
+}
+
+async function saveSongMarker(episodeId, timestamp, title, artist, spotifyId = null, spotifyUrl = null) {
+    if (!episodeId || timestamp === undefined) return;
+    
+    try {
+        const song = {
+            episodeId: episodeId,
+            timestamp: timestamp,
+            title: title,
+            artist: artist,
+            spotifyId: spotifyId,
+            spotifyUrl: spotifyUrl,
+            createdAt: new Date().toISOString()
         };
         
-        if (data && (method === 'POST' || method === 'PUT')) {
-            options.body = JSON.stringify(data);
-        }
-        
-        const response = await fetch(`/api/${endpoint}`, options);
-        return await response.json();
-    } catch (error) {
-        console.error('API Error:', error);
-        return { success: false, message: 'Er is een fout opgetreden bij het communiceren met de server.' };
-    }
-}
-
-// Load episodes from the API
-async function loadEpisodes() {
-    const result = await fetchAPI('episodes');
-    if (result.success) {
-        episodes = result.episodes;
-        renderEpisodes();
-    } else {
-        episodesContainer.innerHTML = `<div class="alert alert-danger">Fout bij het laden van afleveringen: ${result.message}</div>`;
-    }
-}
-
-// Refresh episodes from the RSS feed
-async function refreshEpisodes() {
-    refreshButton.disabled = true;
-    refreshButton.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Vernieuwen...';
-    
-    const result = await fetchAPI('episodes/refresh');
-    
-    refreshButton.disabled = false;
-    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i> Vernieuwen';
-    
-    if (result.success) {
-        loadEpisodes();
-        alert(`Afleveringen vernieuwd! ${result.count} afleveringen gevonden.`);
-    } else {
-        alert(`Fout bij het vernieuwen van afleveringen: ${result.message}`);
-    }
-}
-
-// Render episodes in the episodes view
-function renderEpisodes() {
-    if (episodes.length === 0) {
-        episodesContainer.innerHTML = '<div class="alert alert-info">Geen afleveringen gevonden.</div>';
-        return;
-    }
-    
-    let html = '';
-    episodes.forEach(episode => {
-        const isFavorite = favorites.some(fav => fav.id === episode.id);
-        const duration = formatTime(episode.duration);
-        const date = new Date(episode.publication_date).toLocaleDateString('nl-NL');
-        
-        html += `
-            <div class="episode-card" data-id="${episode.id}">
-                <img src="${episode.image_url || '/static/img/default-cover.jpg'}" alt="${episode.title}">
-                <div class="episode-card-body">
-                    <div class="episode-card-title">${episode.title}</div>
-                    <div class="episode-card-date">${date}</div>
-                    <div class="episode-card-duration">${duration}</div>
-                    <div class="episode-card-actions">
-                        <button class="play" onclick="playEpisode(${episode.id})">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <button class="favorite ${isFavorite ? 'active' : ''}" onclick="toggleEpisodeFavorite(${episode.id}, this)">
-                            <i class="fas fa-heart"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    episodesContainer.innerHTML = html;
-}
-
-// Load favorite episodes
-async function loadFavorites() {
-    const result = await fetchAPI('favorites/episodes');
-    if (result.success) {
-        favorites = result.favorites;
-        renderFavorites();
-    } else {
-        favoritesContainer.innerHTML = `<div class="alert alert-danger">Fout bij het laden van favorieten: ${result.message}</div>`;
-    }
-}
-
-// Render favorite episodes
-function renderFavorites() {
-    if (favorites.length === 0) {
-        favoritesContainer.innerHTML = '<div class="alert alert-info">Geen favoriete afleveringen gevonden.</div>';
-        favoriteEpisodesList.innerHTML = '<li class="list-group-item text-center">Geen favorieten</li>';
-        return;
-    }
-    
-    let html = '';
-    let listHtml = '';
-    
-    favorites.slice(0, 5).forEach(episode => {
-        listHtml += `
-            <li class="list-group-item d-flex justify-content-between align-items-center" onclick="playEpisode(${episode.id})">
-                ${episode.title}
-                <button class="btn btn-sm" onclick="event.stopPropagation(); toggleEpisodeFavorite(${episode.id})">
-                    <i class="fas fa-heart text-success"></i>
-                </button>
-            </li>
-        `;
-    });
-    
-    favorites.forEach(episode => {
-        const duration = formatTime(episode.duration);
-        const date = new Date(episode.publication_date).toLocaleDateString('nl-NL');
-        
-        html += `
-            <div class="episode-card" data-id="${episode.id}">
-                <img src="${episode.image_url || '/static/img/default-cover.jpg'}" alt="${episode.title}">
-                <div class="episode-card-body">
-                    <div class="episode-card-title">${episode.title}</div>
-                    <div class="episode-card-date">${date}</div>
-                    <div class="episode-card-duration">${duration}</div>
-                    <div class="episode-card-actions">
-                        <button class="play" onclick="playEpisode(${episode.id})">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <button class="favorite active" onclick="toggleEpisodeFavorite(${episode.id}, this)">
-                            <i class="fas fa-heart"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    favoritesContainer.innerHTML = html;
-    favoriteEpisodesList.innerHTML = listHtml || '<li class="list-group-item text-center">Geen favorieten</li>';
-}
-
-// Load favorite songs
-async function loadFavoriteSongs() {
-    const result = await fetchAPI('favorites/songs');
-    if (result.success) {
-        favoriteSongs = result.favorites;
-        renderFavoriteSongs();
-    } else {
-        songsContainer.innerHTML = `<div class="alert alert-danger">Fout bij het laden van favoriete nummers: ${result.message}</div>`;
-    }
-}
-
-// Render favorite songs
-function renderFavoriteSongs() {
-    if (favoriteSongs.length === 0) {
-        songsContainer.innerHTML = '<div class="alert alert-info">Geen favoriete nummers gevonden.</div>';
-        return;
-    }
-    
-    let html = '';
-    favoriteSongs.forEach(song => {
-        const hasSpotify = song.spotify_url ? true : false;
-        
-        html += `
-            <div class="song-item">
-                <div class="song-item-info">
-                    <div class="song-item-title">${song.song_title}</div>
-                    <div class="song-item-artist">${song.artist}</div>
-                    <div class="song-item-episode">
-                        <small>Uit: ${song.episode_title} @ ${formatTime(song.timestamp)}</small>
-                    </div>
-                </div>
-                <div class="song-item-actions">
-                    <button onclick="playEpisodeAtTimestamp(${song.episode_id}, ${song.timestamp})">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    ${hasSpotify ? `<a href="${song.spotify_url}" target="_blank"><i class="fab fa-spotify"></i></a>` : ''}
-                    <button onclick="removeFavoriteSong(${song.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    songsContainer.innerHTML = html;
-}
-
-// Load recent episodes
-async function loadRecentEpisodes() {
-    const result = await fetchAPI('history');
-    if (result.success && result.history.length > 0) {
-        const history = result.history;
-        let html = '';
-        
-        history.slice(0, 5).forEach(item => {
-            html += `
-                <li class="list-group-item d-flex justify-content-between align-items-center" onclick="playEpisode(${item.episode_id})">
-                    ${item.title}
-                    <small>${formatTime(item.timestamp)}</small>
-                </li>
-            `;
+        const response = await fetch('/api/favorite-songs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ song: song })
         });
         
-        recentEpisodesList.innerHTML = html;
-    } else {
-        recentEpisodesList.innerHTML = '<li class="list-group-item text-center">Geen recente afleveringen</li>';
-    }
-}
-
-// Toggle episode favorite status
-async function toggleEpisodeFavorite(episodeId, buttonElement) {
-    const isFavorite = favorites.some(fav => fav.id === episodeId);
-    let result;
-    
-    if (isFavorite) {
-        result = await fetchAPI(`favorites/episodes/${episodeId}`, 'DELETE');
-        if (result.success) {
-            favorites = favorites.filter(fav => fav.id !== episodeId);
-        }
-    } else {
-        result = await fetchAPI(`favorites/episodes/${episodeId}`, 'POST');
-        if (result.success) {
-            // Reload favorites to get the full episode data
-            await loadFavorites();
-        }
-    }
-    
-    // Update UI
-    if (result.success) {
-        // Update button if provided
-        if (buttonElement) {
-            buttonElement.classList.toggle('active', !isFavorite);
-        }
+        const data = await response.json();
         
-        // Update favorite button in player if this is the current episode
-        if (currentEpisode && currentEpisode.id === episodeId) {
-            favoriteButton.classList.toggle('active', !isFavorite);
-        }
-        
-        // Re-render episodes and favorites
-        renderEpisodes();
-        renderFavorites();
-    } else {
-        alert(`Fout bij het bijwerken van favorieten: ${result.message}`);
-    }
-}
-
-// Play an episode
-async function playEpisode(episodeId) {
-    // Get episode details
-    const episode = episodes.find(ep => ep.id === episodeId);
-    if (!episode) return;
-    
-    // Stop current playback if any
-    if (player) {
-        player.stop();
-    }
-    
-    // Update current episode
-    currentEpisode = episode;
-    
-    // Update player UI
-    playerTitle.textContent = episode.title;
-    playerDate.textContent = new Date(episode.publication_date).toLocaleDateString('nl-NL');
-    playerCover.src = episode.image_url || '/static/img/default-cover.jpg';
-    
-    // Update favorite button
-    const isFavorite = favorites.some(fav => fav.id === episode.id);
-    favoriteButton.classList.toggle('active', isFavorite);
-    
-    // Create new Howl instance for the audio
-    player = new Howl({
-        src: [episode.audio_url],
-        html5: true,
-        preload: true,
-        onplay: () => {
-            isPlaying = true;
-            playButton.classList.add('playing');
-            updatePlaybackUI();
-        },
-        onpause: () => {
-            isPlaying = false;
-            playButton.classList.remove('playing');
-        },
-        onstop: () => {
-            isPlaying = false;
-            playButton.classList.remove('playing');
-        },
-        onend: () => {
-            isPlaying = false;
-            playButton.classList.remove('playing');
+        if (data.success && data.song) {
+            // Add to favorite songs
+            favoriteSongs.push(data.song);
             
-            // Add to played episodes
-            if (!playedEpisodes.includes(episode.id)) {
-                playedEpisodes.push(episode.id);
-            }
+            // Update UI
+            renderFavoriteSongs();
             
-            // Play next episode if continuous play is enabled
-            if (isContinuous) {
-                playNext();
-            }
-        },
-        onload: () => {
-            // Update total time display
-            totalTimeDisplay.textContent = formatTime(player.duration());
+            // Add marker to waveform
+            addSongMarkerToWaveform(data.song);
             
-            // Skip ads if needed
-            if (episode.ad_end_time && episode.ad_end_time > 0) {
-                player.seek(episode.ad_end_time);
-            }
-        }
-    });
-    
-    // Start playback
-    player.play();
-    
-    // Add to playback history
-    await fetchAPI('history', 'POST', { episode_id: episode.id });
-    
-    // Update recent episodes
-    loadRecentEpisodes();
-    
-    // Set up progress update interval
-    setInterval(updateProgress, 1000);
-}
-
-// Play episode at specific timestamp
-function playEpisodeAtTimestamp(episodeId, timestamp) {
-    playEpisode(episodeId).then(() => {
-        if (player) {
-            player.seek(timestamp);
-        }
-    });
-}
-
-// Toggle play/pause
-function togglePlay() {
-    if (!player) {
-        // If no episode is playing, play a random one
-        if (episodes.length > 0) {
-            const randomIndex = Math.floor(Math.random() * episodes.length);
-            playEpisode(episodes[randomIndex].id);
-        }
-        return;
-    }
-    
-    if (isPlaying) {
-        player.pause();
-    } else {
-        player.play();
-    }
-}
-
-// Play previous episode
-function playPrevious() {
-    if (!currentEpisode || episodes.length === 0) return;
-    
-    let index = episodes.findIndex(ep => ep.id === currentEpisode.id);
-    if (index === -1) index = 0;
-    
-    // Go to previous episode
-    index = (index - 1 + episodes.length) % episodes.length;
-    playEpisode(episodes[index].id);
-}
-
-// Play next episode
-function playNext() {
-    if (episodes.length === 0) return;
-    
-    if (isRandom) {
-        // Play a random episode that hasn't been played yet
-        const unplayedEpisodes = episodes.filter(ep => !playedEpisodes.includes(ep.id));
-        
-        // If all episodes have been played, reset the played list
-        if (unplayedEpisodes.length === 0) {
-            playedEpisodes = [];
-            playNext();
-            return;
-        }
-        
-        // Play a random unplayed episode
-        const randomIndex = Math.floor(Math.random() * unplayedEpisodes.length);
-        playEpisode(unplayedEpisodes[randomIndex].id);
-    } else {
-        // Play the next episode in sequence
-        if (!currentEpisode) {
-            // If no episode is playing, play the first one
-            playEpisode(episodes[0].id);
-            return;
-        }
-        
-        let index = episodes.findIndex(ep => ep.id === currentEpisode.id);
-        if (index === -1) index = 0;
-        
-        // Go to next episode
-        index = (index + 1) % episodes.length;
-        playEpisode(episodes[index].id);
-    }
-}
-
-// Update volume
-function updateVolume() {
-    if (player) {
-        player.volume(volumeSlider.value / 100);
-    }
-}
-
-// Update progress bar
-function updateProgress() {
-    if (player && isPlaying) {
-        const currentTime = player.seek();
-        const duration = player.duration();
-        const percentage = (currentTime / duration) * 100;
-        
-        progressBar.style.width = `${percentage}%`;
-        currentTimeDisplay.textContent = formatTime(currentTime);
-        currentTimestamp = currentTime;
-    }
-}
-
-// Seek audio to a specific position
-function seekAudio(event) {
-    if (!player) return;
-    
-    const progressContainer = document.querySelector('.progress');
-    const rect = progressContainer.getBoundingClientRect();
-    const clickPosition = event.clientX - rect.left;
-    const percentage = clickPosition / rect.width;
-    const seekTime = percentage * player.duration();
-    
-    player.seek(seekTime);
-    updateProgress();
-}
-
-// Toggle favorite status for current episode
-function toggleFavorite() {
-    if (currentEpisode) {
-        toggleEpisodeFavorite(currentEpisode.id);
-    }
-}
-
-// Open mark song modal
-function openMarkSongModal() {
-    if (!player || !currentEpisode) return;
-    
-    // Get current timestamp
-    const timestamp = player.seek();
-    songTimestampDisplay.textContent = formatTime(timestamp);
-    
-    // Clear previous inputs
-    songTitleInput.value = '';
-    songArtistInput.value = '';
-    
-    // Show modal
-    markSongModal.show();
-}
-
-// Save favorite song
-async function saveFavoriteSong() {
-    if (!currentEpisode) return;
-    
-    const songTitle = songTitleInput.value.trim();
-    const songArtist = songArtistInput.value.trim();
-    const timestamp = player.seek();
-    
-    if (!songTitle || !songArtist) {
-        alert('Vul alstublieft zowel de titel als de artiest in.');
-        return;
-    }
-    
-    // Save song to favorites
-    const result = await fetchAPI('favorites/songs', 'POST', {
-        episode_id: currentEpisode.id,
-        timestamp: timestamp,
-        song_title: songTitle,
-        artist: songArtist
-    });
-    
-    if (result.success) {
-        // Close modal
-        markSongModal.hide();
-        
-        // Search for song on Spotify
-        searchSpotify(songTitle, songArtist, result.song_id);
-        
-        // Reload favorite songs
-        loadFavoriteSongs();
-    } else {
-        alert(`Fout bij het opslaan van favoriet nummer: ${result.message}`);
-    }
-}
-
-// Search for a song on Spotify
-async function searchSpotify(title, artist, songId) {
-    const result = await fetchAPI(`spotify/search?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
-    
-    if (result.success && result.tracks.length > 0) {
-        // Render Spotify results
-        let html = `<h5>Resultaten voor "${title}" door ${artist}</h5>`;
-        
-        result.tracks.forEach(track => {
-            html += `
-                <div class="spotify-track">
-                    <img src="${track.image_url || '/static/img/default-cover.jpg'}" alt="${track.name}">
-                    <div class="spotify-track-info">
-                        <div class="spotify-track-title">${track.name}</div>
-                        <div class="spotify-track-artist">${track.artist}</div>
-                        <div class="spotify-track-album">${track.album}</div>
-                    </div>
-                    <div class="spotify-track-actions">
-                        ${track.preview_url ? `<button onclick="previewSpotifyTrack('${track.preview_url}')"><i class="fas fa-play"></i></button>` : ''}
-                        <a href="${track.url}" target="_blank"><i class="fab fa-spotify"></i></a>
-                        <button onclick="linkSpotifyTrack(${songId}, '${track.url}')"><i class="fas fa-link"></i></button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        spotifyResultsContainer.innerHTML = html;
-        spotifyResultsModal.show();
-    } else if (result.success) {
-        alert(`Geen resultaten gevonden op Spotify voor "${title}" door ${artist}.`);
-    } else {
-        console.error('Spotify search error:', result.message);
-    }
-}
-
-// Link a Spotify track to a favorite song
-async function linkSpotifyTrack(songId, spotifyUrl) {
-    const result = await fetchAPI(`favorites/songs/${songId}`, 'PUT', {
-        spotify_url: spotifyUrl
-    });
-    
-    if (result.success) {
-        alert('Spotify link toegevoegd aan favoriet nummer!');
-        spotifyResultsModal.hide();
-        loadFavoriteSongs();
-    } else {
-        alert(`Fout bij het toevoegen van Spotify link: ${result.message}`);
-    }
-}
-
-// Preview a Spotify track
-function previewSpotifyTrack(previewUrl) {
-    // Pause current playback
-    if (player && isPlaying) {
-        player.pause();
-    }
-    
-    // Create a temporary audio element
-    const audio = new Audio(previewUrl);
-    audio.play();
-}
-
-// Remove a favorite song
-async function removeFavoriteSong(songId) {
-    if (confirm('Weet u zeker dat u dit nummer wilt verwijderen uit uw favorieten?')) {
-        const result = await fetchAPI(`favorites/songs/${songId}`, 'DELETE');
-        
-        if (result.success) {
-            loadFavoriteSongs();
+            return data.song;
         } else {
-            alert(`Fout bij het verwijderen van favoriet nummer: ${result.message}`);
+            throw new Error('Failed to save song marker');
         }
+    } catch (error) {
+        console.error('Error saving song marker:', error);
+        alert('Fout bij het opslaan van nummer marker. Probeer het later opnieuw.');
+        return null;
     }
 }
 
-// Toggle random playback
-function toggleRandom() {
-    isRandom = !isRandom;
-    randomButton.classList.toggle('active', isRandom);
+async function downloadEpisode(episodeId) {
+    if (!episodeId) return;
     
-    // Reset played episodes when turning random on
-    if (isRandom) {
-        playedEpisodes = [];
-        if (currentEpisode) {
-            playedEpisodes.push(currentEpisode.id);
+    try {
+        const response = await fetch(`/api/episodes/${episodeId}/download`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.taskId) {
+            // Add to downloads
+            downloads[data.taskId] = {
+                episodeId: episodeId,
+                status: 'pending',
+                progress: 0,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Update UI
+            renderDownloads();
+            
+            // Start polling for status
+            pollDownloadStatus(data.taskId);
+            
+            return data.taskId;
+        } else {
+            throw new Error('Failed to start download');
         }
+    } catch (error) {
+        console.error('Error downloading episode:', error);
+        alert('Fout bij het starten van download. Probeer het later opnieuw.');
+        return null;
     }
 }
 
-// Toggle continuous playback
-function toggleContinuous() {
-    isContinuous = !isContinuous;
-    continuousButton.classList.toggle('active', isContinuous);
-}
-
-// Update playback UI
-function updatePlaybackUI() {
-    // Update random button
-    randomButton.classList.toggle('active', isRandom);
+function pollDownloadStatus(taskId) {
+    if (!taskId || !downloads[taskId]) return;
     
-    // Update continuous button
-    continuousButton.classList.toggle('active', isContinuous);
+    const interval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/downloads/${taskId}/status`);
+            const data = await response.json();
+            
+            if (data.status) {
+                // Update download status
+                downloads[taskId] = data;
+                
+                // Update UI
+                updateDownloadItem(taskId);
+                
+                // Stop polling if completed or failed
+                if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+                    clearInterval(interval);
+                }
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            console.error('Error polling download status:', error);
+            clearInterval(interval);
+        }
+    }, 2000);
 }
 
-// Format time in seconds to MM:SS format
+// Rendering Functions
+function renderEpisodes() {
+    const episodesList = document.getElementById('episodes-list');
+    
+    if (episodes.length === 0) {
+        episodesList.innerHTML = '<p class="empty-message">Geen afleveringen gevonden.</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    episodes.forEach(episode => {
+        html += createEpisodeCard(episode);
+    });
+    
+    episodesList.innerHTML = html;
+    
+    // Add event listeners
+    episodesList.querySelectorAll('.episode-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const episodeId = this.dataset.id;
+            const episode = episodes.find(ep => ep.id === episodeId);
+            
+            if (episode) {
+                loadAndPlayEpisode(episode);
+            }
+        });
+        
+        const favoriteBtn = card.querySelector('.favorite-button');
+        if (favoriteBtn) {
+            favoriteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const episodeId = this.dataset.id;
+                toggleFavorite(episodeId);
+            });
+        }
+        
+        const downloadBtn = card.querySelector('.download-button');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const episodeId = this.dataset.id;
+                downloadEpisode(episodeId);
+            });
+        }
+    });
+}
+
+function renderFavorites() {
+    const favoritesList = document.getElementById('favorites-list');
+    const favoriteEpisodes = document.getElementById('favorite-episodes');
+    
+    // Filter episodes that are favorites
+    const favEpisodes = episodes.filter(ep => favorites.includes(ep.id));
+    
+    if (favEpisodes.length === 0) {
+        favoritesList.innerHTML = '<p class="empty-message">Geen favoriete afleveringen gevonden.</p>';
+        favoriteEpisodes.innerHTML = '<p class="empty-message">Geen favorieten</p>';
+        return;
+    }
+    
+    let favoritesHtml = '';
+    let recentHtml = '';
+    
+    favEpisodes.forEach(episode => {
+        favoritesHtml += createEpisodeCard(episode);
+        
+        // Add to recent favorites (max 3)
+        if (recentHtml.split('episode-card').length <= 3) {
+            recentHtml += createEpisodeCard(episode);
+        }
+    });
+    
+    favoritesList.innerHTML = favoritesHtml;
+    favoriteEpisodes.innerHTML = recentHtml || '<p class="empty-message">Geen favorieten</p>';
+    
+    // Add event listeners to favorites list
+    favoritesList.querySelectorAll('.episode-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const episodeId = this.dataset.id;
+            const episode = episodes.find(ep => ep.id === episodeId);
+            
+            if (episode) {
+                loadAndPlayEpisode(episode);
+            }
+        });
+        
+        const favoriteBtn = card.querySelector('.favorite-button');
+        if (favoriteBtn) {
+            favoriteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const episodeId = this.dataset.id;
+                toggleFavorite(episodeId);
+            });
+        }
+        
+        const downloadBtn = card.querySelector('.download-button');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const episodeId = this.dataset.id;
+                downloadEpisode(episodeId);
+            });
+        }
+    });
+    
+    // Add event listeners to favorite episodes in home page
+    favoriteEpisodes.querySelectorAll('.episode-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const episodeId = this.dataset.id;
+            const episode = episodes.find(ep => ep.id === episodeId);
+            
+            if (episode) {
+                loadAndPlayEpisode(episode);
+            }
+        });
+    });
+}
+
+function renderFavoriteSongs() {
+    const songsList = document.getElementById('favorite-songs-list');
+    
+    if (favoriteSongs.length === 0) {
+        songsList.innerHTML = '<p class="empty-message">Geen favoriete nummers gevonden.</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    // Group songs by episode
+    const songsByEpisode = {};
+    
+    favoriteSongs.forEach(song => {
+        if (!songsByEpisode[song.episodeId]) {
+            songsByEpisode[song.episodeId] = [];
+        }
+        
+        songsByEpisode[song.episodeId].push(song);
+    });
+    
+    // Render songs grouped by episode
+    for (const episodeId in songsByEpisode) {
+        const episode = episodes.find(ep => ep.id === episodeId);
+        const episodeSongs = songsByEpisode[episodeId];
+        
+        html += `
+            <div class="episode-songs">
+                <h3>${episode ? episode.title : 'Onbekende aflevering'}</h3>
+                <div class="songs-list">
+        `;
+        
+        episodeSongs.forEach(song => {
+            const timestamp = formatTime(song.timestamp);
+            
+            html += `
+                <div class="song-item" data-episode-id="${episodeId}" data-timestamp="${song.timestamp}">
+                    <div class="song-info">
+                        <h4>${song.title || 'Onbekende titel'}</h4>
+                        <p>${song.artist || 'Onbekende artiest'}</p>
+                        <span class="song-timestamp">${timestamp}</span>
+                    </div>
+                    <div class="song-actions">
+                        <button class="btn btn-circle play-song-button" title="Afspelen">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        ${song.spotifyUrl ? `
+                            <a href="${song.spotifyUrl}" target="_blank" class="btn btn-circle" title="Open in Spotify">
+                                <i class="fab fa-spotify"></i>
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    songsList.innerHTML = html;
+    
+    // Add event listeners
+    songsList.querySelectorAll('.play-song-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const songItem = this.closest('.song-item');
+            const episodeId = songItem.dataset.episodeId;
+            const timestamp = parseFloat(songItem.dataset.timestamp);
+            
+            const episode = episodes.find(ep => ep.id === episodeId);
+            
+            if (episode) {
+                loadAndPlayEpisode(episode, timestamp);
+            }
+        });
+    });
+}
+
+function renderDownloads() {
+    const downloadsList = document.getElementById('downloads-list');
+    
+    if (Object.keys(downloads).length === 0) {
+        downloadsList.innerHTML = '<p class="empty-message">Geen downloads gevonden.</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    // Group downloads by status
+    const activeDownloads = [];
+    const completedDownloads = [];
+    const failedDownloads = [];
+    
+    for (const taskId in downloads) {
+        const download = downloads[taskId];
+        
+        if (download.status === 'pending' || download.status === 'downloading') {
+            activeDownloads.push({ taskId, ...download });
+        } else if (download.status === 'completed') {
+            completedDownloads.push({ taskId, ...download });
+        } else {
+            failedDownloads.push({ taskId, ...download });
+        }
+    }
+    
+    // Render active downloads
+    if (activeDownloads.length > 0) {
+        html += '<h3>Actieve Downloads</h3><div class="downloads-section">';
+        
+        activeDownloads.forEach(download => {
+            html += createDownloadItem(download.taskId, download);
+        });
+        
+        html += '</div>';
+    }
+    
+    // Render completed downloads
+    if (completedDownloads.length > 0) {
+        html += '<h3>Voltooide Downloads</h3><div class="downloads-section">';
+        
+        completedDownloads.forEach(download => {
+            html += createDownloadItem(download.taskId, download);
+        });
+        
+        html += '</div>';
+    }
+    
+    // Render failed downloads
+    if (failedDownloads.length > 0) {
+        html += '<h3>Mislukte Downloads</h3><div class="downloads-section">';
+        
+        failedDownloads.forEach(download => {
+            html += createDownloadItem(download.taskId, download);
+        });
+        
+        html += '</div>';
+    }
+    
+    downloadsList.innerHTML = html;
+    
+    // Add event listeners
+    downloadsList.querySelectorAll('.download-item').forEach(item => {
+        const taskId = item.dataset.taskId;
+        
+        const cancelBtn = item.querySelector('.cancel-download-button');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                cancelDownload(taskId);
+            });
+        }
+        
+        const deleteBtn = item.querySelector('.delete-download-button');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                deleteDownload(taskId);
+            });
+        }
+        
+        const playBtn = item.querySelector('.play-download-button');
+        if (playBtn) {
+            playBtn.addEventListener('click', function() {
+                playDownload(taskId);
+            });
+        }
+    });
+    
+    // Download all button
+    document.getElementById('download-all-button').addEventListener('click', function() {
+        downloadAllEpisodes();
+    });
+}
+
+function updateDownloadItem(taskId) {
+    const downloadItem = document.querySelector(`.download-item[data-task-id="${taskId}"]`);
+    if (!downloadItem) return;
+    
+    const download = downloads[taskId];
+    if (!download) return;
+    
+    // Update progress
+    const progressBar = downloadItem.querySelector('.download-progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${download.progress || 0}%`;
+    }
+    
+    // Update status
+    const statusElement = downloadItem.querySelector('.download-status');
+    if (statusElement) {
+        let statusText = 'Onbekend';
+        
+        switch (download.status) {
+            case 'pending':
+                statusText = 'Wachten...';
+                break;
+            case 'downloading':
+                statusText = `Downloaden (${download.progress || 0}%)`;
+                break;
+            case 'completed':
+                statusText = 'Voltooid';
+                break;
+            case 'failed':
+                statusText = `Mislukt: ${download.error || 'Onbekende fout'}`;
+                break;
+            case 'cancelled':
+                statusText = 'Geannuleerd';
+                break;
+        }
+        
+        statusElement.textContent = statusText;
+    }
+    
+    // Update actions
+    const actionsElement = downloadItem.querySelector('.download-actions');
+    if (actionsElement) {
+        if (download.status === 'completed') {
+            actionsElement.innerHTML = `
+                <button class="btn btn-circle play-download-button" title="Afspelen">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="btn btn-circle delete-download-button" title="Verwijderen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+        } else if (download.status === 'pending' || download.status === 'downloading') {
+            actionsElement.innerHTML = `
+                <button class="btn btn-circle cancel-download-button" title="Annuleren">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        } else {
+            actionsElement.innerHTML = `
+                <button class="btn btn-circle delete-download-button" title="Verwijderen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+        }
+    }
+    
+    // Add event listeners
+    const cancelBtn = downloadItem.querySelector('.cancel-download-button');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            cancelDownload(taskId);
+        });
+    }
+    
+    const deleteBtn = downloadItem.querySelector('.delete-download-button');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            deleteDownload(taskId);
+        });
+    }
+    
+    const playBtn = downloadItem.querySelector('.play-download-button');
+    if (playBtn) {
+        playBtn.addEventListener('click', function() {
+            playDownload(taskId);
+        });
+    }
+}
+
+// Helper Functions
+function createEpisodeCard(episode) {
+    const isFavorite = favorites.includes(episode.id);
+    const date = new Date(episode.date).toLocaleDateString('nl-NL');
+    
+    return `
+        <div class="episode-card" data-id="${episode.id}">
+            <div class="episode-cover">
+                <img src="${episode.image || '/static/img/default-cover.jpg'}" alt="${episode.title}">
+            </div>
+            <div class="episode-info">
+                <h3>${episode.title}</h3>
+                <p>${date}</p>
+                <p>${episode.duration || ''}</p>
+            </div>
+            <div class="episode-actions">
+                <button class="btn btn-circle favorite-button ${isFavorite ? 'favorite' : ''}" data-id="${episode.id}" title="${isFavorite ? 'Verwijder uit favorieten' : 'Voeg toe aan favorieten'}">
+                    <i class="fas fa-heart"></i>
+                </button>
+                <button class="btn btn-circle download-button" data-id="${episode.id}" title="Download">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function createDownloadItem(taskId, download) {
+    const episode = episodes.find(ep => ep.id === download.episodeId);
+    const title = episode ? episode.title : download.episode_title || 'Onbekende aflevering';
+    
+    let statusText = 'Onbekend';
+    let actions = '';
+    
+    switch (download.status) {
+        case 'pending':
+            statusText = 'Wachten...';
+            actions = `
+                <button class="btn btn-circle cancel-download-button" title="Annuleren">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            break;
+        case 'downloading':
+            statusText = `Downloaden (${download.progress || 0}%)`;
+            actions = `
+                <button class="btn btn-circle cancel-download-button" title="Annuleren">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            break;
+        case 'completed':
+            statusText = 'Voltooid';
+            actions = `
+                <button class="btn btn-circle play-download-button" title="Afspelen">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="btn btn-circle delete-download-button" title="Verwijderen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            break;
+        case 'failed':
+            statusText = `Mislukt: ${download.error || 'Onbekende fout'}`;
+            actions = `
+                <button class="btn btn-circle delete-download-button" title="Verwijderen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            break;
+        case 'cancelled':
+            statusText = 'Geannuleerd';
+            actions = `
+                <button class="btn btn-circle delete-download-button" title="Verwijderen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            break;
+    }
+    
+    return `
+        <div class="download-item" data-task-id="${taskId}">
+            <div class="download-info">
+                <h4>${title}</h4>
+                <p class="download-status">${statusText}</p>
+            </div>
+            <div class="download-progress">
+                <div class="download-progress-bar" style="width: ${download.progress || 0}%"></div>
+            </div>
+            <div class="download-actions">
+                ${actions}
+            </div>
+        </div>
+    `;
+}
+
 function formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return '0:00';
+    if (isNaN(seconds)) return '0:00';
     
-    seconds = Math.floor(seconds);
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
     
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
+
+function updateFavoriteButton() {
+    const favoriteButton = document.getElementById('favorite-button');
+    
+    if (!currentEpisode) {
+        favoriteButton.classList.remove('favorite');
+        favoriteButton.innerHTML = '<i class="far fa-heart"></i>';
+        return;
+    }
+    
+    const isFavorite = favorites.includes(currentEpisode.id);
+    
+    if (isFavorite) {
+        favoriteButton.classList.add('favorite');
+        favoriteButton.innerHTML = '<i class="fas fa-heart"></i>';
+    } else {
+        favoriteButton.classList.remove('favorite');
+        favoriteButton.innerHTML = '<i class="far fa-heart"></i>';
+    }
+}
+
+// Player Functions
+function loadAndPlayEpisode(episode, startTime = 0) {
+    if (!episode || !episode.audioUrl) return;
+    
+    currentEpisode = episode;
+    
+    // Update player info
+    document.getElementById('episode-title').textContent = episode.title;
+    document.getElementById('episode-date').textContent = new Date(episode.date).toLocaleDateString('nl-NL');
+    document.getElementById('episode-cover').src = episode.image || '/static/img/default-cover.jpg';
+    
+    // Update favorite button
+    updateFavoriteButton();
+    
+    // Load audio in waveform
+    if (wavesurfer) {
+        wavesurfer.load(episode.audioUrl);
+        
+        // Set start time after loading
+        wavesurfer.on('ready', function() {
+            if (startTime > 0) {
+                wavesurfer.seekTo(startTime / wavesurfer.getDuration());
+            }
+            
+            // Skip ads at beginning (first 30 seconds)
+            if (startTime === 0) {
+                wavesurfer.seekTo(30 / wavesurfer.getDuration());
+            }
+            
+            // Start playing
+            wavesurfer.play();
+            
+            // Load song markers for this episode
+            loadSongMarkersForEpisode(episode.id);
+        });
+    }
+    
+    // Add to recent episodes
+    addToRecentEpisodes(episode);
+}
+
+function playEpisode() {
+    if (!wavesurfer) return;
+    
+    wavesurfer.play();
+    isPlaying = true;
+    
+    // Update play button
+    document.getElementById('play-button').innerHTML = '<i class="fas fa-pause"></i>';
+}
+
+function pauseEpisode() {
+    if (!wavesurfer) return;
+    
+    wavesurfer.pause();
+    isPlaying = false;
+    
+    // Update play button
+    document.getElementById('play-button').innerHTML = '<i class="fas fa-play"></i>';
+}
+
+function playNextEpisode() {
+    if (!currentEpisode || episodes.length === 0) return;
+    
+    let nextEpisode;
+    
+    if (isRandom) {
+        // Get random episode
+        const randomIndex = Math.floor(Math.random() * episodes.length);
+        nextEpisode = episodes[randomIndex];
+    } else {
+        // Get next episode in list
+        const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode.id);
+        const nextIndex = (currentIndex + 1) % episodes.length;
+        nextEpisode = episodes[nextIndex];
+    }
+    
+    if (nextEpisode) {
+        loadAndPlayEpisode(nextEpisode);
+    }
+}
+
+function playPreviousEpisode() {
+    if (!currentEpisode || episodes.length === 0) return;
+    
+    // Get previous episode in list
+    const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode.id);
+    const prevIndex = (currentIndex - 1 + episodes.length) % episodes.length;
+    const prevEpisode = episodes[prevIndex];
+    
+    if (prevEpisode) {
+        loadAndPlayEpisode(prevEpisode);
+    }
+}
+
+function addToRecentEpisodes(episode) {
+    // Get recent episodes from localStorage
+    let recentEpisodes = JSON.parse(localStorage.getItem('recentEpisodes') || '[]');
+    
+    // Remove episode if already in list
+    recentEpisodes = recentEpisodes.filter(ep => ep.id !== episode.id);
+    
+    // Add episode to beginning of list
+    recentEpisodes.unshift(episode);
+    
+    // Limit to 5 episodes
+    recentEpisodes = recentEpisodes.slice(0, 5);
+    
+    // Save to localStorage
+    localStorage.setItem('recentEpisodes', JSON.stringify(recentEpisodes));
+    
+    // Render recent episodes
+    renderRecentEpisodes(recentEpisodes);
+}
+
+function renderRecentEpisodes(recentEpisodes) {
+    const recentList = document.getElementById('recent-episodes');
+    
+    if (!recentEpisodes || recentEpisodes.length === 0) {
+        recentList.innerHTML = '<p class="empty-message">Geen recente afleveringen</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    recentEpisodes.forEach(episode => {
+        html += createEpisodeCard(episode);
+    });
+    
+    recentList.innerHTML = html;
+    
+    // Add event listeners
+    recentList.querySelectorAll('.episode-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const episodeId = this.dataset.id;
+            const episode = recentEpisodes.find(ep => ep.id === episodeId);
+            
+            if (episode) {
+                loadAndPlayEpisode(episode);
+            }
+        });
+    });
+}
+
+// Download Functions
+async function cancelDownload(taskId) {
+    if (!taskId || !downloads[taskId]) return;
+    
+    try {
+        const response = await fetch(`/api/downloads/${taskId}/cancel`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update download status
+            downloads[taskId].status = 'cancelled';
+            
+            // Update UI
+            updateDownloadItem(taskId);
+        } else {
+            throw new Error('Failed to cancel download');
+        }
+    } catch (error) {
+        console.error('Error cancelling download:', error);
+        alert('Fout bij het annuleren van download. Probeer het later opnieuw.');
+    }
+}
+
+async function deleteDownload(taskId) {
+    if (!taskId || !downloads[taskId]) return;
+    
+    try {
+        const response = await fetch(`/api/downloads/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Remove from downloads
+            delete downloads[taskId];
+            
+            // Update UI
+            renderDownloads();
+        } else {
+            throw new Error('Failed to delete download');
+        }
+    } catch (error) {
+        console.error('Error deleting download:', error);
+        alert('Fout bij het verwijderen van download. Probeer het later opnieuw.');
+    }
+}
+
+function playDownload(taskId) {
+    if (!taskId || !downloads[taskId] || downloads[taskId].status !== 'completed') return;
+    
+    const download = downloads[taskId];
+    const episode = episodes.find(ep => ep.id === download.episodeId);
+    
+    if (episode) {
+        // Use local file URL if available
+        if (download.local_path) {
+            const localUrl = `/api/downloads/${taskId}/file`;
+            
+            // Create temporary episode object with local URL
+            const localEpisode = {
+                ...episode,
+                audioUrl: localUrl
+            };
+            
+            loadAndPlayEpisode(localEpisode);
+        } else {
+            // Fall back to streaming URL
+            loadAndPlayEpisode(episode);
+        }
+    }
+}
+
+async function downloadAllEpisodes() {
+    if (episodes.length === 0) return;
+    
+    const confirmDownload = confirm(`Weet u zeker dat u alle ${episodes.length} afleveringen wilt downloaden? Dit kan veel schijfruimte in beslag nemen.`);
+    
+    if (!confirmDownload) return;
+    
+    try {
+        const response = await fetch('/api/downloads/all', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.taskIds) {
+            alert(`Download van ${data.taskIds.length} afleveringen gestart.`);
+            
+            // Reload downloads
+            loadDownloads();
+        } else {
+            throw new Error('Failed to start downloads');
+        }
+    } catch (error) {
+        console.error('Error downloading all episodes:', error);
+        alert('Fout bij het starten van downloads. Probeer het later opnieuw.');
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent episodes from localStorage
+    const recentEpisodes = JSON.parse(localStorage.getItem('recentEpisodes') || '[]');
+    renderRecentEpisodes(recentEpisodes);
+});
