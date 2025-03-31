@@ -75,12 +75,6 @@ def add_episode():
     return jsonify({"success": True, "message": "Episode added/updated"})
 
 # API Endpoints
-@app.route('/api/episodes', methods=['GET'])
-def get_episodes():
-    """Get all episodes."""
-    episodes = db.get_all_episodes()
-    return jsonify({"success": True, "episodes": episodes})
-
 @app.route('/api/episodes/refresh', methods=['GET'])
 def refresh_episodes():
     parsed = podcast_parser.parse_feed()
@@ -89,8 +83,6 @@ def refresh_episodes():
 
     if not parsed.get('success'):
         return jsonify({"success": False, "message": "Failed to parse RSS feed", "details": parsed}), 500
-
-            return jsonify({"success": False, "message": "Failed to parse RSS feed"}), 500
 
     new_count = 0
     for item in parsed.get('episodes', []):
@@ -105,7 +97,7 @@ def refresh_episodes():
             publication_date=item.get('publication_date', ''),
             audio_url=item['audio_url'],
             image_url=item.get('image_url', ''),
-            duration=item.get('duration', 0)
+            duration=item.get('duration', 0),
         )
         new_count += 1
 
