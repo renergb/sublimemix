@@ -1,108 +1,59 @@
 import feedparser
-import requests
+import logging
+import os
 import json
 from datetime import datetime
-import re
-from .database import Database
 
-class PodcastFeedParser:
-    def __init__(self, feed_url, db):
-        """Initialize the podcast feed parser with the feed URL and database connection."""
+class PodcastParser:
+    """Class voor het parsen van podcast feeds."""
+    
+    def __init__(self, feed_url, database):
+        """Initialiseer de podcast parser."""
         self.feed_url = feed_url
-        self.db = db
+        self.database = database
+        self.logger = logging.getLogger(__name__)
     
     def parse_feed(self):
-        """Parse the podcast RSS feed and store episodes in the database."""
+        """Parse de podcast feed en retourneer een lijst met afleveringen."""
         try:
+            self.logger.info(f"Parsen van podcast feed: {self.feed_url}")
             feed = feedparser.parse(self.feed_url)
             
-            if not feed.entries:
-                return {"success": False, "message": "No episodes found in feed", "count": 0}
-            
-            count = 0
-            for entry in feed.entries:
+            episodes = []
+            for i, entry in enumerate(feed.entries):
                 # Extract episode details
-                title = entry.title
-                description = entry.description if hasattr(entry, 'description') else ""
-                
-                # Parse publication date
-                if hasattr(entry, 'published'):
-                    try:
-                        pub_date = datetime(*entry.published_parsed[:6]).isoformat()
-                    except:
-                        pub_date = entry.published
-                else:
-                    pub_date = datetime.now().isoformat()
-                
-                # Get audio URL
-                audio_url = None
-                if hasattr(entry, 'enclosures') and entry.enclosures:
-                    for enclosure in entry.enclosures:
-                        if enclosure.type and enclosure.type.startswith('audio/'):
-                            audio_url = enclosure.href
-                            break
-                
-                # Get duration if available
-                duration = 0
-                if hasattr(entry, 'itunes_duration'):
-                    try:
-                        # Handle different duration formats (HH:MM:SS, MM:SS, or seconds)
-                        duration_parts = entry.itunes_duration.split(':')
-                        if len(duration_parts) == 3:  # HH:MM:SS
-                            duration = int(duration_parts[0]) * 3600 + int(duration_parts[1]) * 60 + int(duration_parts[2])
-                        elif len(duration_parts) == 2:  # MM:SS
-                            duration = int(duration_parts[0]) * 60 + int(duration_parts[1])
-                        else:  # Seconds
-                            duration = int(entry.itunes_duration)
-                    except:
-                        duration = 0
-                
-                # Get image URL if available
-                image_url = None
-                if hasattr(entry, 'image') and hasattr(entry.image, 'href'):
-                    image_url = entry.image.href
-                elif hasattr(feed, 'feed') and hasattr(feed.feed, 'image') and hasattr(feed.feed.image, 'href'):
-                    image_url = feed.feed.image.href
-                
-                # Get unique identifier
-                guid = entry.id if hasattr(entry, 'id') else audio_url
-                
-                # Add to database if we have the required fields
-                if title and audio_url:
-                    episode_id = self.db.add_episode(
-                        title=title,
-                        description=description,
-                        publication_date=pub_date,
-                        audio_url=audio_url,
-                        duration=duration,
-                        image_url=image_url,
-                        guid=guid
-                    )
-                    if episode_id:
-                        count += 1
+                episode = {
+                    'id': str(i + 1),
+                    'title': entry.title,
+                    'description': entry.description,
+                    'date': entry.published,
+                    'audioUrl': entry.enclosures[0].href if entry.enclosures else None,
+                    'image': entry.image.href if hasattr(entry, 'image') else None,
+                    'duration': entry.itunes_duration if hasattr(entry, 'itunes_duration') else None,
+                }
+                episodes.append(episode)
             
-            return {"success": True, "message": f"Successfully parsed {count} episodes", "count": count}
-        
+            # Sla episodes op in database
+            self.database.save_episodes(episodes)
+            
+            self.logger.info(f"Succesvol {len(episodes)} afleveringen geparsed")
+            return episodes
         except Exception as e:
-            return {"success": False, "message": f"Error parsing feed: {str(e)}", "count": 0}
+            self.logger.error(f"Fout bij het parsen van de podcast feed: {e}")
+            return []
     
-    def get_episode_details(self, episode_id):
-        """Get detailed information about a specific episode."""
-        return self.db.get_episode(episode_id)
+    def get_episodes(self, refresh=False):
+        """Haal afleveringen op, vernieuw indien nodig."""
+        episodes = self.database.load_episodes()
+        
+        # Als er geen afleveringen zijn of refresh is True, parse de feed
+        if not episodes or refresh:
+            episodes = self.parse_feed()
+        
+        return episodes
     
-    @staticmethod
-    def estimate_ad_end_time(audio_url):
-        """
-        Estimate where the advertisement ends in the podcast.
-        This is a placeholder function that could be improved with actual audio analysis.
-        For now, we'll assume a fixed duration of 30 seconds for ads at the beginning.
-        """
-        return 30  # Default 30 seconds
-    
-    @staticmethod
-    def extract_episode_number(title):
-        """Extract episode number from title if available."""
-        match = re.search(r'#(\d+)', title)
-        if match:
-            return int(match.group(1))
-        return None
+    def get_episode_by_id(self, episode_id):
+        """Haal een specifieke aflevering op basis van ID."""
+        episodes = self.get_episodes()
+        episode = next((ep for ep in episodes if ep['id'] == episode_id), None)
+        return episode
