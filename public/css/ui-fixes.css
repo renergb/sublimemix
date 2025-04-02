@@ -1,0 +1,206 @@
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary-color);
+  color: white;
+  padding: 8px;
+  z-index: 100;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Modal Improvements */
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  text-align: center;
+  box-shadow: var(--box-shadow);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Improved Playlist Styling */
+.playlist {
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: var(--border-radius);
+}
+
+.playlist li {
+  padding: 0.75rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: var(--transition);
+}
+
+.playlist li:last-child {
+  border-bottom: none;
+}
+
+.playlist li:hover {
+  background-color: rgba(230, 46, 92, 0.05);
+}
+
+.playlist li.active {
+  background-color: rgba(230, 46, 92, 0.1);
+  border-left: 3px solid var(--primary-color);
+}
+
+.track-info {
+  flex: 1;
+}
+
+.track-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-track-btn, .remove-track-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.play-track-btn:hover {
+  color: var(--primary-color);
+  background-color: rgba(230, 46, 92, 0.1);
+}
+
+.remove-track-btn:hover {
+  color: var(--danger-color);
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* Improved Shazam Animation */
+.listening-animation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  gap: 5px;
+  margin: 2rem 0;
+}
+
+.bar {
+  width: 10px;
+  height: 30px;
+  background-color: var(--secondary-color);
+  border-radius: 3px;
+  animation: sound 1.5s infinite ease-in-out;
+}
+
+@keyframes sound {
+  0% {
+    height: 10px;
+    opacity: 0.7;
+  }
+  50% {
+    height: 50px;
+    opacity: 1;
+  }
+  100% {
+    height: 10px;
+    opacity: 0.7;
+  }
+}
+
+.bar:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.bar:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.bar:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.bar:nth-child(4) {
+  animation-delay: 0.6s;
+}
+
+.bar:nth-child(5) {
+  animation-delay: 0.8s;
+}
+
+/* Recognition Result Styling */
+#recognition-result {
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  background-color: rgba(76, 175, 80, 0.1);
+  margin-top: 1rem;
+}
+
+#recognition-result h3 {
+  margin-bottom: 0.5rem;
+  color: var(--tertiary-color);
+}
+
+#recognized-song {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+#add-to-playlist {
+  background-color: var(--tertiary-color);
+}
+
+#add-to-playlist:hover {
+  background-color: #3d8b40;
+}
+
+/* Focus Visible Improvements */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
