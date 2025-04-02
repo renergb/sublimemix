@@ -50,6 +50,8 @@ app.use(errorHandler.notFound);
 app.use(errorHandler.general);
 
 // Start server
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
