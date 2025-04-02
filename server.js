@@ -1,57 +1,43 @@
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const path = require('path');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Bind to all network interfaces
-
-// Import routes
-const shazamRoutes = require('./src/routes/shazam');
-
-// Import CORS configuration
-const corsOptions = require('./src/config/cors');
+const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors(corsOptions));
-app.use(bodyParser.json({ limit: '10mb' })); // Increased limit for audio data
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Static files
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/css', express.static(path.join(__dirname, 'static/css')));
+app.use('/js', express.static(path.join(__dirname, 'static/js')));
+app.use('/img', express.static(path.join(__dirname, 'static/img')));
+app.use('/audio', express.static(path.join(__dirname, 'static/audio')));
 
-// Routes
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Jukebox API is running' });
-});
-
-// Shazam integration routes
-app.use('/api/shazam', shazamRoutes);
-
-// Playlist management routes
+// API route: Laden van playlist
 app.get('/api/playlist', (req, res) => {
-  // Placeholder for playlist retrieval
-  res.status(200).json({ 
-    playlist: [
-      { id: 1, title: 'Sample Song 1', artist: 'Artist 1', duration: '3:45' },
-      { id: 2, title: 'Sample Song 2', artist: 'Artist 2', duration: '4:20' }
-    ]
+  fs.readFile(path.join(__dirname, 'data', 'playlist.json'), 'utf8', (err, data) => {
+    if (err) {
+      console.error('Fout bij het laden van de afspeellijst:', err);
+      return res.status(500).json({ error: 'Kon afspeellijst niet laden' });
+    }
+    try {
+      const playlist = JSON.parse(data);
+      res.json(playlist);
+    } catch (parseError) {
+      console.error('Fout bij het parsen van de afspeellijst:', parseError);
+      res.status(500).json({ error: 'Fout bij het parsen van de afspeellijst' });
+    }
   });
 });
 
-// Import error handlers
-const errorHandler = require('./src/middleware/errorHandler');
-
-// Routes
-// ... existing routes ...
-
-// Error handling middleware (must be after routes)
-app.use(errorHandler.notFound);
-app.use(errorHandler.general);
-
-// Start server
-const port = process.env.PORT || 3000;
-
+// Server starten
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
